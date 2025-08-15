@@ -275,8 +275,8 @@ function AuthProvider({ children }) {
 
 // Login Component (unchanged but enhanced)
 function Login() {
-  const [email, setEmail] = useState('supervisor@demo.com');
-  const [password, setPassword] = useState('password123');
+  const [email, setEmail] = useState('supervisor@company.com');
+  const [password, setPassword] = useState('AdminPass123!');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useContext(AuthContext);
@@ -352,9 +352,9 @@ function Login() {
         </div>
         <div className="mt-6 text-center text-blue-200 text-sm space-y-1">
           <div className="font-medium">Demo Accounts:</div>
-          <div>👨‍💼 Supervisor: supervisor@demo.com</div>
-          <div>👷‍♀️ Employee: employee@demo.com</div>
-          <div className="text-blue-300">Password: password123</div>
+          <div>👨‍💼 Supervisor: supervisor@company.com</div>
+          <div>👷‍♀️ Employee: employee@company.com</div>
+          <div className="text-blue-300">Password: AdminPass123!</div>
         </div>
       </div>
     </div>
