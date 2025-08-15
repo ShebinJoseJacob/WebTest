@@ -112,7 +112,6 @@
       "last 1 safari version"
     ]
   },
-  "proxy": "http://backend:5000",
   "homepage": ".",
   "engines": {
     "node": ">=16.0.0",
