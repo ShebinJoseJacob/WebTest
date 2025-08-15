@@ -11,7 +11,7 @@ import {
 } from './components/SupervisorComponents';
 
 // API Configuration
-const API_URL = process.env.REACT_APP_API_URL || 'https://iot-monitoring-backend-sgba.onrender.com';
+const API_URL = process.env.REACT_APP_API_URL || 'https://iot-monitoring-backend-sgba.onrender.com/api';
 
 // Auth Context
 const AuthContext = createContext(null);
