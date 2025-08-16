@@ -1,0 +1,143 @@
+const express = require('express');
+const Joi = require('joi');
+const Vital = require('../models/Vital');
+const Alert = require('../models/Alert');
+const User = require('../models/User');
+const Attendance = require('../models/Attendance');
+
+const router = express.Router();
+
+// Validation schema for IoT device data
+const deviceDataSchema = Joi.object({
+  device_serial: Joi.string().required(),
+  heart_rate: Joi.number().integer().min(30).max(200).optional(),
+  spo2: Joi.number().integer().min(0).max(100).optional(),
+  temperature: Joi.number().min(30).max(45).optional(),
+  latitude: Joi.number().min(-90).max(90).optional(),
+  longitude: Joi.number().min(-180).max(180).optional(),
+  gps_accuracy: Joi.number().min(0).optional(),
+  fall_detected: Joi.boolean().optional(),
+  timestamp: Joi.date().iso().optional(),
+});
+
+// @route   POST /api/data
+// @desc    Ingest data from IoT devices
+// @access  Public (devices don't have user auth, use device serial)
+router.post('/', async (req, res) => {
+  try {
+    // Validate request body
+    const { error, value } = deviceDataSchema.validate(req.body);
+    if (error) {
+      return res.status(400).json({
+        error: 'Validation error',
+        details: error.details.map(detail => detail.message)
+      });
+    }
+
+    const { 
+      device_serial, 
+      heart_rate, 
+      spo2, 
+      temperature, 
+      latitude, 
+      longitude, 
+      gps_accuracy,
+      fall_detected = false,
+      timestamp = new Date()
+    } = value;
+
+    // Find device by serial
+    const userWithDevice = await User.findWithDevice(null, device_serial);
+    if (!userWithDevice || !userWithDevice.device) {
+      return res.status(404).json({
+        error: 'Device not found'
+      });
+    }
+
+    // Create vital record
+    const vital = await Vital.create({
+      device_id: userWithDevice.device.id,
+      heart_rate,
+      spo2,
+      temperature,
+      latitude,
+      longitude,
+      gps_accuracy,
+      fall_detected,
+      timestamp
+    });
+
+    // Process attendance (first signal of the day)
+    if (heart_rate || spo2 || temperature) {
+      await Attendance.processFirstSignal(userWithDevice.id, timestamp);
+    }
+
+    // Check for alerts (simplified for now)
+    const io = req.app.get('io');
+    let alertsCreated = 0;
+    
+    try {
+      if (vital.isAbnormal && typeof vital.isAbnormal === 'function' && vital.isAbnormal()) {
+        const alerts = await Alert.createFromVital(vital, userWithDevice.id);
+        alertsCreated = alerts ? alerts.length : 0;
+        
+        // Emit real-time alerts
+        if (io && alerts && alerts.length > 0) {
+          for (const alert of alerts) {
+            if (io.broadcastVitalAlert && typeof io.broadcastVitalAlert === 'function') {
+              io.broadcastVitalAlert(alert, vital);
+            }
+          }
+        }
+      }
+    } catch (alertError) {
+      console.error('Alert processing error:', alertError);
+      // Continue execution even if alerts fail
+    }
+
+    // Emit real-time vital update
+    if (io && io.broadcastVitalUpdate && typeof io.broadcastVitalUpdate === 'function') {
+      io.broadcastVitalUpdate(vital, userWithDevice.id);
+    }
+
+    res.status(201).json({
+      message: 'Data ingested successfully',
+      vital_id: vital.id,
+      alerts_created: alertsCreated,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Data ingestion error:', error);
+    res.status(500).json({
+      error: 'Internal server error during data ingestion'
+    });
+  }
+});
+
+// @route   GET /api/data/devices
+// @desc    Get list of active devices (for testing)
+// @access  Private
+router.get('/devices', async (req, res) => {
+  try {
+    const devices = await User.findAll({ active: true });
+    
+    res.json({
+      devices: devices.map(user => ({
+        device_serial: user.device?.serial,
+        user_name: user.name,
+        user_id: user.id,
+        last_seen: user.device?.last_seen,
+        is_active: user.device?.is_active
+      })).filter(d => d.device_serial)
+    });
+
+  } catch (error) {
+    console.error('Get devices error:', error);
+    res.status(500).json({
+      error: 'Internal server error while fetching devices'
+    });
+  }
+});
+
+module.exports = router;
