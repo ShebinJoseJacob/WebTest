@@ -85,11 +85,11 @@ class ApiService {
   }
 
   async getAllVitals() {
-    return this.request('/vitals/all');
+    return this.request('/vitals/latest');
   }
 
   async getAllAlerts() {
-    return this.request('/alerts/all');
+    return this.request('/alerts');
   }
 
   async getAllAttendance() {
@@ -738,77 +738,77 @@ function SupervisorDashboard() {
   const loadSupervisorData = async () => {
     setLoading(true);
     try {
-      // Mock data for hundreds of employees
-      const departments = ['Manufacturing', 'Warehouse', 'Quality Control', 'Logistics', 'Maintenance', 'Security'];
-      const positions = ['Floor Worker', 'Supervisor', 'Technician', 'Specialist', 'Lead', 'Coordinator'];
-      const firstNames = ['Alice', 'Bob', 'Carol', 'David', 'Emma', 'Frank', 'Grace', 'Henry', 'Ivy', 'Jack', 'Kate', 'Liam', 'Maya', 'Noah', 'Olivia', 'Paul', 'Quinn', 'Ruby', 'Sam', 'Tara'];
-      const lastNames = ['Johnson', 'Smith', 'Davis', 'Brown', 'Wilson', 'Moore', 'Taylor', 'Anderson', 'Thomas', 'Jackson', 'White', 'Harris', 'Martin', 'Garcia', 'Martinez', 'Robinson', 'Clark', 'Rodriguez', 'Lewis', 'Lee'];
+      // Fetch real data from API
+      const [vitalsData, alertsData, attendanceData] = await Promise.all([
+        apiService.getAllVitals(),
+        apiService.getAllAlerts(), 
+        apiService.getAllAttendance()
+      ]);
+
+      console.log('Loaded real alerts:', alertsData);
+
+      // Transform vitals data into employee format
+      const employeesMap = new Map();
       
-      const mockEmployees = Array.from({ length: 150 }, (_, i) => {
-        const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
-        const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
-        const department = departments[Math.floor(Math.random() * departments.length)];
-        const position = positions[Math.floor(Math.random() * positions.length)];
-        
-        // Generate realistic vital signs
-        const baseHeartRate = 65 + Math.random() * 20;
-        const heartRate = Math.round(baseHeartRate + (Math.random() - 0.5) * 10);
-        const spo2 = Math.round(96 + Math.random() * 3);
-        const temperature = Math.round((36.2 + Math.random() * 1.6) * 10) / 10;
-        
-        // Determine status based on vitals
-        let status = 'online';
-        if (heartRate > 100 || spo2 < 95 || temperature > 37.5) {
-          status = heartRate > 110 || spo2 < 94 || temperature > 38 ? 'critical' : 'warning';
+      // Process vitals data
+      if (vitalsData.vitals) {
+        vitalsData.vitals.forEach(vital => {
+          if (!employeesMap.has(vital.user_id)) {
+            employeesMap.set(vital.user_id, {
+              id: vital.user_id.toString(),
+              name: vital.user_name || `Employee ${vital.user_id}`,
+              department: vital.department || 'Operations',
+              position: 'Worker',
+              deviceId: vital.device_serial || `DEV${vital.device_id}`,
+              shift: 'Morning',
+              employeeId: `EMP${String(vital.user_id).padStart(4, '0')}`,
+              latestVital: {
+                heart_rate: vital.heart_rate,
+                spo2: vital.spo2,
+                temperature: vital.temperature,
+                latitude: vital.latitude,
+                longitude: vital.longitude,
+                timestamp: new Date(vital.timestamp),
+                accuracy: vital.gps_accuracy || 5
+              },
+              status: 'online',
+              lastSeen: new Date(vital.timestamp)
+            });
+          }
+        });
+      }
+
+      // Determine employee status based on vitals and alerts
+      const employeesArray = Array.from(employeesMap.values());
+      const criticalUserIds = new Set();
+      const warningUserIds = new Set();
+
+      if (alertsData.alerts) {
+        alertsData.alerts.forEach(alert => {
+          if (!alert.acknowledged) {
+            if (alert.severity === 'critical') {
+              criticalUserIds.add(alert.user_id);
+            } else if (alert.severity === 'high' || alert.severity === 'medium') {
+              warningUserIds.add(alert.user_id);
+            }
+          }
+        });
+      }
+
+      // Update employee status based on alerts
+      employeesArray.forEach(emp => {
+        const empId = parseInt(emp.id);
+        if (criticalUserIds.has(empId)) {
+          emp.status = 'critical';
+        } else if (warningUserIds.has(empId)) {
+          emp.status = 'warning';
+        } else {
+          emp.status = 'online';
         }
-        
-        return {
-          id: (i + 1).toString(),
-          name: `${firstName} ${lastName}`,
-          department,
-          position,
-          deviceId: `DEV${String(i + 1).padStart(3, '0')}`,
-          shift: ['Morning', 'Afternoon', 'Night'][Math.floor(Math.random() * 3)],
-          employeeId: `EMP${String(i + 1).padStart(4, '0')}`,
-          latestVital: {
-            heart_rate: heartRate,
-            spo2,
-            temperature,
-            latitude: 40.7128 + (Math.random() - 0.5) * 0.1,
-            longitude: -74.0060 + (Math.random() - 0.5) * 0.1,
-            timestamp: new Date(Date.now() - Math.random() * 300000), // Random within last 5 minutes
-            accuracy: Math.round(3 + Math.random() * 15)
-          },
-          status,
-          lastSeen: new Date(Date.now() - Math.random() * 600000), // Random within last 10 minutes
-        };
       });
 
-      const mockAlerts = [
-        {
-          id: '1',
-          user_id: '3',
-          user_name: 'Carol Davis',
-          type: 'heart_rate_critical',
-          severity: 'critical',
-          message: 'Heart rate 110 bpm exceeded safe threshold',
-          acknowledged: false,
-          timestamp: new Date(Date.now() - 300000)
-        },
-        {
-          id: '2',
-          user_id: '2',
-          user_name: 'Bob Smith',
-          type: 'temperature_high',
-          severity: 'medium',
-          message: 'Body temperature 37.1°C slightly elevated',
-          acknowledged: false,
-          timestamp: new Date(Date.now() - 600000)
-        }
-      ];
-
-      setEmployees(mockEmployees);
-      setAlerts(mockAlerts);
+      setEmployees(employeesArray);
+      setAlerts(alertsData.alerts || []);
     } catch (error) {
       console.error('Failed to load supervisor data:', error);
     } finally {
