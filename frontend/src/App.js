@@ -740,9 +740,9 @@ function SupervisorDashboard() {
     try {
       // Fetch real data from API
       const [vitalsData, alertsData, attendanceData] = await Promise.all([
-        apiService.getAllVitals(),
-        apiService.getAllAlerts(), 
-        apiService.getAllAttendance()
+        api.getAllVitals(),
+        api.getAllAlerts(), 
+        api.getAllAttendance()
       ]);
 
       console.log('Loaded real alerts:', alertsData);
