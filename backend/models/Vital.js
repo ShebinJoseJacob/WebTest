@@ -289,11 +289,18 @@ class Vital {
 
   // Check if vital reading is abnormal
   isAbnormal() {
+    console.log('Checking isAbnormal with values:', {
+      heart_rate: this.heart_rate,
+      spo2: this.spo2,
+      temperature: this.temperature,
+      fall_detected: this.fall_detected
+    });
+    
     return (
-      this.heart_rate < 60 || this.heart_rate > 100 ||
-      this.spo2 < 95 ||
-      this.temperature < 36.0 || this.temperature > 37.5 ||
-      this.fall_detected
+      (this.heart_rate !== null && this.heart_rate !== undefined && (this.heart_rate < 60 || this.heart_rate > 100)) ||
+      (this.spo2 !== null && this.spo2 !== undefined && this.spo2 < 95) ||
+      (this.temperature !== null && this.temperature !== undefined && (this.temperature < 36.0 || this.temperature > 37.5)) ||
+      this.fall_detected === true
     );
   }
 

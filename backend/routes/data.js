@@ -72,14 +72,28 @@ router.post('/', async (req, res) => {
       await Attendance.processFirstSignal(userWithDevice.id, timestamp);
     }
 
-    // Check for alerts (simplified for now)
+    // Check for alerts with debugging
     const io = req.app.get('io');
     let alertsCreated = 0;
     
     try {
-      if (vital.isAbnormal && typeof vital.isAbnormal === 'function' && vital.isAbnormal()) {
+      console.log('Vital data for alert check:', {
+        id: vital.id,
+        heart_rate: vital.heart_rate,
+        spo2: vital.spo2,
+        temperature: vital.temperature,
+        fall_detected: vital.fall_detected,
+        has_isAbnormal: typeof vital.isAbnormal === 'function'
+      });
+      
+      const isAbnormal = vital.isAbnormal();
+      console.log('isAbnormal result:', isAbnormal);
+      
+      if (isAbnormal) {
+        console.log('Creating alerts for vital:', vital.id);
         const alerts = await Alert.createFromVital(vital, userWithDevice.id);
         alertsCreated = alerts ? alerts.length : 0;
+        console.log('Alerts created:', alertsCreated);
         
         // Emit real-time alerts
         if (io && alerts && alerts.length > 0) {
@@ -89,6 +103,8 @@ router.post('/', async (req, res) => {
             }
           }
         }
+      } else {
+        console.log('Vital is not abnormal, no alerts created');
       }
     } catch (alertError) {
       console.error('Alert processing error:', alertError);
