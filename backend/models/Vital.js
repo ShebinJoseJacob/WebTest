@@ -31,8 +31,8 @@ class Vital {
     } = vitalData;
 
     const result = await query(
-      `INSERT INTO vitals (device_id, heart_rate, spo2, temperature, latitude, longitude, gps_accuracy, fall_detected, timestamp, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP)
+      `INSERT INTO vitals (device_id, heart_rate, spo2, temperature, latitude, longitude, gps_accuracy, fall_detected, timestamp)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING *`,
       [device_id, heart_rate, spo2, temperature, latitude, longitude, gps_accuracy, fall_detected, timestamp]
     );
