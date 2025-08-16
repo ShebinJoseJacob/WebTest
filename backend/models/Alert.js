@@ -8,6 +8,7 @@ class Alert {
     this.user_id = alertData.user_id;
     this.type = alertData.type;
     this.severity = alertData.severity;
+    this.title = alertData.title;
     this.message = alertData.message;
     this.value = parseFloat(alertData.value);
     this.threshold = parseFloat(alertData.threshold);
@@ -27,6 +28,7 @@ class Alert {
       user_id,
       type,
       severity,
+      title,
       message,
       value = null,
       threshold = null,
@@ -34,10 +36,10 @@ class Alert {
     } = alertData;
 
     const result = await query(
-      `INSERT INTO alerts (device_id, user_id, type, severity, message, value, threshold, timestamp, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP)
+      `INSERT INTO alerts (device_id, user_id, type, severity, title, message, value, threshold, timestamp, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP)
        RETURNING *`,
-      [device_id, user_id, type, severity, message, value, threshold, timestamp]
+      [device_id, user_id, type, severity, title, message, value, threshold, timestamp]
     );
 
     return new Alert(result.rows[0]);
