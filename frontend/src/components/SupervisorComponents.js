@@ -479,9 +479,11 @@ export function FilterPanel({ filters, setFilters }) {
 }
 
 // Employee Card Component
-export function EmployeeCard({ employee }) {
+export function EmployeeCard({ employee, alerts = [] }) {
   const vital = employee.latestVital;
   const isOnline = vital?.timestamp && new Date() - new Date(vital.timestamp) < 60000;
+  const unacknowledgedAlerts = alerts.filter(alert => !alert.acknowledged);
+  const criticalAlerts = alerts.filter(alert => alert.severity === 'critical' && !alert.acknowledged);
   
   return (
     <div className="p-6 border-b last:border-b-0 hover:bg-gray-50 transition-colors">
@@ -557,6 +559,26 @@ export function EmployeeCard({ employee }) {
       {vital?.timestamp && (
         <div className="mt-3 text-xs text-gray-500 text-center">
           Last update: {new Date(vital.timestamp).toLocaleTimeString()}
+        </div>
+      )}
+      
+      {/* Alert indicators */}
+      {unacknowledgedAlerts.length > 0 && (
+        <div className="mt-3 flex items-center justify-between">
+          <div className={`flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+            criticalAlerts.length > 0 
+              ? 'bg-red-100 text-red-800' 
+              : 'bg-orange-100 text-orange-800'
+          }`}>
+            <AlertTriangle className="h-3 w-3 mr-1" />
+            {unacknowledgedAlerts.length} Alert{unacknowledgedAlerts.length > 1 ? 's' : ''}
+            {criticalAlerts.length > 0 && ' (Critical)'}
+          </div>
+          {criticalAlerts.length > 0 && (
+            <div className="animate-pulse">
+              <AlertCircle className="h-4 w-4 text-red-500" />
+            </div>
+          )}
         </div>
       )}
     </div>

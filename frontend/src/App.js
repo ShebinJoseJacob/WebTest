@@ -1096,16 +1096,20 @@ function ModernOverviewTab({
 
         {viewMode === 'grid' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 p-2">
-            {employees.map(employee => (
-              <ModernEmployeeCard 
-                key={employee.id} 
-                employee={employee} 
-                onClick={onEmployeeClick}
-              />
-            ))}
+            {employees.map(employee => {
+              const employeeAlerts = alerts.filter(alert => alert.user_id === employee.id);
+              return (
+                <ModernEmployeeCard 
+                  key={employee.id} 
+                  employee={employee} 
+                  alerts={employeeAlerts}
+                  onClick={onEmployeeClick}
+                />
+              );
+            })}
           </div>
         ) : (
-          <ModernEmployeeTable employees={employees} onEmployeeClick={onEmployeeClick} />
+          <ModernEmployeeTable employees={employees} onEmployeeClick={onEmployeeClick} alerts={alerts} />
         )}
       </div>
 
@@ -1189,9 +1193,12 @@ function OverviewTab({ stats, employees, alerts, filters, setFilters, onAcknowle
           <h2 className="text-lg font-semibold">Live Employee Monitoring</h2>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-1">
-          {employees.map(employee => (
-            <EmployeeCard key={employee.id} employee={employee} />
-          ))}
+          {employees.map(employee => {
+            const employeeAlerts = alerts.filter(alert => alert.user_id === employee.id);
+            return (
+              <EmployeeCard key={employee.id} employee={employee} alerts={employeeAlerts} />
+            );
+          })}
         </div>
       </div>
 
@@ -1311,9 +1318,11 @@ function VitalValue({ value, unit, label, icon: Icon, isNormal, showOriginal = t
 }
 
 // Modern Employee Card
-function ModernEmployeeCard({ employee, onClick }) {
+function ModernEmployeeCard({ employee, alerts = [], onClick }) {
   const vital = employee.latestVital;
   const isOnline = vital?.timestamp && new Date() - new Date(vital.timestamp) < 300000; // 5 minutes
+  const unacknowledgedAlerts = alerts.filter(alert => !alert.acknowledged);
+  const criticalAlerts = alerts.filter(alert => alert.severity === 'critical' && !alert.acknowledged);
   
   return (
     <div 
@@ -1390,6 +1399,26 @@ function ModernEmployeeCard({ employee, onClick }) {
       {vital?.timestamp && (
         <div className="mt-3 text-xs text-gray-500 text-center bg-blue-50 rounded px-2 py-1">
           Last: {new Date(vital.timestamp).toLocaleTimeString()}
+        </div>
+      )}
+      
+      {/* Alert indicators */}
+      {unacknowledgedAlerts.length > 0 && (
+        <div className="mt-3 flex items-center justify-between">
+          <div className={`flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+            criticalAlerts.length > 0 
+              ? 'bg-red-100 text-red-800' 
+              : 'bg-orange-100 text-orange-800'
+          }`}>
+            <AlertTriangle className="h-3 w-3 mr-1" />
+            {unacknowledgedAlerts.length} Alert{unacknowledgedAlerts.length > 1 ? 's' : ''}
+            {criticalAlerts.length > 0 && ' (Critical)'}
+          </div>
+          {criticalAlerts.length > 0 && (
+            <div className="animate-pulse">
+              <AlertCircle className="h-4 w-4 text-red-500" />
+            </div>
+          )}
         </div>
       )}
     </div>
