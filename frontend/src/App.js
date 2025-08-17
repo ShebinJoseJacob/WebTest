@@ -81,7 +81,54 @@ class ApiService {
 
   // Supervisor-specific endpoints (all data)
   async getAllEmployees() {
-    return this.request('/data/employees');
+    // Use devices endpoint and transform to employee format
+    const devicesResponse = await this.request('/data/devices');
+    const employees = devicesResponse.devices.map((device, index) => ({
+      id: device.user_id,
+      name: device.user_name,
+      department: this.getDepartmentFromName(device.user_name),
+      position: this.getPositionFromName(device.user_name),
+      employeeId: `EMP${String(device.user_id).padStart(4, '0')}`,
+      shift: ['Morning', 'Afternoon', 'Night'][index % 3],
+      deviceId: device.device_serial,
+      device: {
+        serial: device.device_serial,
+        is_active: device.is_active,
+        last_seen: device.last_seen
+      },
+      // Default vital signs - will be updated by real-time data
+      latestVital: {
+        heart_rate: 75,
+        spo2: 98,
+        temperature: 36.5,
+        timestamp: new Date(),
+        latitude: 40.7128 + (Math.random() - 0.5) * 0.01,
+        longitude: -74.0060 + (Math.random() - 0.5) * 0.01
+      },
+      status: 'online',
+      lastSeen: device.last_seen || new Date()
+    }));
+    return { employees };
+  }
+  
+  getDepartmentFromName(name) {
+    // Map real employees to their departments
+    const departmentMap = {
+      'Jane Employee': 'Operations',
+      'Mike Worker': 'Operations', 
+      'Sarah Tech': 'Technical'
+    };
+    return departmentMap[name] || 'Operations';
+  }
+  
+  getPositionFromName(name) {
+    // Map real employees to their positions
+    const positionMap = {
+      'Jane Employee': 'Floor Worker',
+      'Mike Worker': 'Technician', 
+      'Sarah Tech': 'Specialist'
+    };
+    return positionMap[name] || 'Worker';
   }
 
   async getAllVitals() {
