@@ -558,19 +558,22 @@ function VitalChart({ title, data, dataKey, unit, color, icon: Icon, normalRange
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     
-    if (chartData.length === 0) return;
+    // Filter out invalid data points
+    const validData = chartData.filter(point => point[dataKey] != null && !isNaN(point[dataKey]));
+    
+    if (validData.length === 0) return;
     
     // Find the closest data point to the mouse position
-    const minValue = Math.min(...chartData.map(d => d[dataKey]));
-    const maxValue = Math.max(...chartData.map(d => d[dataKey]));
-    const valueRange = maxValue - minValue;
+    const minValue = Math.min(...validData.map(d => d[dataKey]));
+    const maxValue = Math.max(...validData.map(d => d[dataKey]));
+    const valueRange = maxValue - minValue || 1; // Avoid division by zero
     
     let closestIndex = 0;
     let closestDistance = Infinity;
     
-    chartData.forEach((point, index) => {
+    validData.forEach((point, index) => {
       // Calculate the exact screen position using the same formula as the SVG polyline
-      const svgX = (index / (chartData.length - 1)) * 100; // SVG percentage (0-100)
+      const svgX = (index / (validData.length - 1)) * 100; // SVG percentage (0-100)
       const svgY = 100 - ((point[dataKey] - minValue) / valueRange * 100); // SVG percentage (0-100, flipped)
       
       // Convert SVG percentages to actual pixel coordinates
@@ -586,7 +589,7 @@ function VitalChart({ title, data, dataKey, unit, color, icon: Icon, normalRange
       }
     });
     
-    const hoveredData = chartData[closestIndex];
+    const hoveredData = validData[closestIndex];
     
     if (hoveredData) {
       setTooltipData({
@@ -640,10 +643,15 @@ function VitalChart({ title, data, dataKey, unit, color, icon: Icon, normalRange
                 fill="none"
                 stroke={color}
                 strokeWidth="2"
-                points={chartData.map((point, i) => 
-                  `${(i / (chartData.length - 1)) * 100},${100 - ((point[dataKey] - Math.min(...chartData.map(d => d[dataKey]))) / 
-                  (Math.max(...chartData.map(d => d[dataKey])) - Math.min(...chartData.map(d => d[dataKey])))) * 100}`
-                ).join(' ')}
+                points={chartData
+                  .filter(point => point[dataKey] != null && !isNaN(point[dataKey]))
+                  .map((point, i, validData) => {
+                    const minValue = Math.min(...validData.map(d => d[dataKey]));
+                    const maxValue = Math.max(...validData.map(d => d[dataKey]));
+                    const range = maxValue - minValue || 1; // Avoid division by zero
+                    return `${(i / (validData.length - 1)) * 100},${100 - ((point[dataKey] - minValue) / range) * 100}`;
+                  })
+                  .join(' ')}
               />
             )}
           </svg>
