@@ -31,7 +31,8 @@ import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import RefreshButton from '../components/ui/RefreshButton';
-import PersonalVitalsChart from '../components/charts/PersonalVitalsChart';
+// Import icons for charts
+import { Heart, Activity, Thermometer } from 'lucide-react';
 import PersonalAttendanceChart from '../components/charts/PersonalAttendanceChart';
 import PersonalAlertsList from '../components/alerts/PersonalAlertsList';
 import HealthStatusCard from '../components/dashboard/HealthStatusCard';
@@ -538,5 +539,167 @@ const EmployeeDashboard = () => {
     </>
   );
 };
+
+// Vital Chart Component
+function VitalChart({ title, data, dataKey, unit, color, icon: Icon, normalRange }) {
+  const chartData = data || [];
+  
+  const latestValue = chartData[chartData.length - 1]?.[dataKey];
+  const [showTooltip, setShowTooltip] = useState(false);
+  const [tooltipData, setTooltipData] = useState(null);
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  
+  const handleChartMouseMove = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    const validData = chartData.filter(point => point[dataKey] != null && !isNaN(point[dataKey]));
+    
+    if (validData.length === 0) return;
+    
+    const minValue = Math.min(...validData.map(d => d[dataKey]));
+    const maxValue = Math.max(...validData.map(d => d[dataKey]));
+    const valueRange = maxValue - minValue || 1;
+    
+    let closestIndex = 0;
+    let closestDistance = Infinity;
+    
+    validData.forEach((point, index) => {
+      const svgX = (index / (validData.length - 1)) * 100;
+      const svgY = 100 - ((point[dataKey] - minValue) / valueRange * 100);
+      
+      const pointX = (svgX / 100) * rect.width;
+      const pointY = (svgY / 100) * rect.height;
+      
+      const distance = Math.sqrt(Math.pow(x - pointX, 2) + Math.pow(y - pointY, 2));
+      
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closestIndex = index;
+      }
+    });
+    
+    const hoveredData = validData[closestIndex];
+    
+    if (hoveredData) {
+      setTooltipData({
+        value: hoveredData[dataKey],
+        timestamp: hoveredData.timestamp,
+        index: closestIndex
+      });
+      setMousePosition({ x, y });
+      setShowTooltip(true);
+    }
+  };
+  
+  return (
+    <div className="bg-white rounded-xl shadow-sm p-6">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center">
+          <Icon className="h-5 w-5 mr-2" style={{ color }} />
+          <h3 className="font-semibold">{title}</h3>
+        </div>
+        <div className="text-right">
+          <div 
+            className="text-2xl font-bold" 
+            style={{ color }}
+          >
+            {latestValue ? Math.round(latestValue * 10) / 10 : '--'}
+          </div>
+          <div className="text-sm text-gray-500">{unit}</div>
+        </div>
+      </div>
+      
+      <div 
+        className="h-24 w-full bg-gray-50 rounded-lg mb-2 relative overflow-visible cursor-crosshair hover:bg-gray-100 transition-colors"
+        onMouseMove={handleChartMouseMove}
+        onMouseLeave={() => {
+          setShowTooltip(false);
+          setTooltipData(null);
+        }}
+      >
+        {chartData.length === 0 ? (
+          <div className="flex items-center justify-center h-full text-gray-400">
+            <div className="text-center">
+              <Icon className="h-8 w-8 mx-auto mb-2 opacity-50" />
+              <div className="text-sm">No data available</div>
+            </div>
+          </div>
+        ) : (
+          <svg className="w-full h-full pointer-events-none">
+            {chartData.length > 1 && (
+              <polyline
+                fill="none"
+                stroke={color}
+                strokeWidth="2"
+                points={chartData
+                  .filter(point => point[dataKey] != null && !isNaN(point[dataKey]))
+                  .map((point, i, validData) => {
+                    const minValue = Math.min(...validData.map(d => d[dataKey]));
+                    const maxValue = Math.max(...validData.map(d => d[dataKey]));
+                    const range = maxValue - minValue || 1;
+                    return `${(i / (validData.length - 1)) * 100},${100 - ((point[dataKey] - minValue) / range) * 100}`;
+                  })
+                  .join(' ')}
+              />
+            )}
+          </svg>
+        )}
+        
+        {showTooltip && tooltipData && (
+          <div 
+            className="absolute z-[9999] pointer-events-none bg-gray-800 text-white px-2 py-1 rounded text-xs"
+            style={{
+              left: mousePosition.x + 10,
+              top: mousePosition.y - 30,
+            }}
+          >
+            {Math.round(tooltipData.value * 10) / 10} {unit}
+          </div>
+        )}
+      </div>
+      
+      <div className="text-xs text-gray-500">
+        Normal: {normalRange}
+      </div>
+    </div>
+  );
+}
+
+// Personal Vitals Chart Component that combines all three charts
+function PersonalVitalsChart({ data, timeRange, height }) {
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <VitalChart
+        title="Heart Rate"
+        data={data}
+        dataKey="heart_rate"
+        unit="bpm"
+        color="#ef4444"
+        icon={Heart}
+        normalRange="60-100"
+      />
+      <VitalChart
+        title="SpO2"
+        data={data}
+        dataKey="spo2"
+        unit="%"
+        color="#3b82f6"
+        icon={Activity}
+        normalRange="95-100"
+      />
+      <VitalChart
+        title="Temperature"
+        data={data}
+        dataKey="temperature"
+        unit="°C"
+        color="#f59e0b"
+        icon={Thermometer}
+        normalRange="36.1-37.2"
+      />
+    </div>
+  );
+}
 
 export default EmployeeDashboard;
