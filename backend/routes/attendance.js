@@ -594,24 +594,4 @@ router.get('/export', roleAuth(['supervisor']), async (req, res) => {
   }
 });
 
-// @route   DELETE /api/attendance/clear-all
-// @desc    Delete all attendance records (development/testing only)
-// @access  Private (Supervisor only)
-router.delete('/clear-all', roleAuth(['supervisor']), async (req, res) => {
-  try {
-    const deletedCount = await Attendance.deleteAll();
-
-    res.json({
-      message: 'All attendance records cleared successfully',
-      deletedRecords: deletedCount
-    });
-
-  } catch (error) {
-    console.error('Clear all attendance error:', error);
-    res.status(500).json({
-      error: 'Internal server error during attendance clearing'
-    });
-  }
-});
-
 module.exports = router;

@@ -69,13 +69,7 @@ class ApiService {
 
   // Employee-specific endpoints (only own data)
   async getMyVitals() {
-    return this.request('/vitals/latest');
-  }
-  
-  async getMyVitalsHistory(timeRange = '24h') {
-    const hoursMap = { '1h': 1, '6h': 6, '24h': 24, '7d': 168 };
-    const hours = hoursMap[timeRange] || 24;
-    return this.request(`/vitals/history?hours=${hours}`);
+    return this.request('/vitals/my');
   }
 
   async getMyAlerts() {
@@ -103,8 +97,15 @@ class ApiService {
         is_active: device.is_active,
         last_seen: device.last_seen
       },
-      // Vital signs - will be updated by real-time data from API
-      latestVital: null,
+      // Default vital signs - will be updated by real-time data
+      latestVital: {
+        heart_rate: 75,
+        spo2: 98,
+        temperature: 36.5,
+        timestamp: new Date(),
+        latitude: 40.7128 + (Math.random() - 0.5) * 0.01,
+        longitude: -74.0060 + (Math.random() - 0.5) * 0.01
+      },
       status: 'online',
       lastSeen: device.last_seen || new Date()
     }));
@@ -390,19 +391,27 @@ function EmployeeDashboard() {
   const loadEmployeeData = async () => {
     setLoading(true);
     try {
-      // Load real employee data from API
-      const vitalsHistoryResponse = await api.getMyVitalsHistory('24h');
-      const realVitals = vitalsHistoryResponse.vitals || [];
-      
+      // Mock employee's own data only
+      const mockVitals = Array.from({ length: 24 }, (_, i) => ({
+        time: new Date(Date.now() - (23 - i) * 60 * 60 * 1000),
+        heart_rate: 70 + Math.sin(i / 4) * 10 + Math.random() * 10,
+        spo2: 97 + Math.random() * 2,
+        temperature: 36.5 + Math.random() * 0.8
+      }));
+
+      // Load real employee alerts from API
       const alertsResponse = await api.getMyAlerts();
       const realAlerts = alertsResponse.alerts || [];
-      
-      const attendanceResponse = await api.getMyAttendance();
-      const realAttendance = attendanceResponse.attendance || null;
-      
-      setVitals(realVitals);
+
+      const mockAttendance = {
+        check_in_time: new Date().setHours(8, 30, 0, 0),
+        status: 'present',
+        date: new Date().toDateString()
+      };
+
+      setVitals(mockVitals);
       setAlerts(realAlerts);
-      setAttendance(realAttendance);
+      setAttendance(mockAttendance);
     } catch (error) {
       console.error('Failed to load employee data:', error);
     } finally {
@@ -564,22 +573,19 @@ function VitalChart({ title, data, dataKey, unit, color, icon: Icon, normalRange
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     
-    // Filter out invalid data points
-    const validData = chartData.filter(point => point[dataKey] != null && !isNaN(point[dataKey]));
-    
-    if (validData.length === 0) return;
+    if (chartData.length === 0) return;
     
     // Find the closest data point to the mouse position
-    const minValue = Math.min(...validData.map(d => d[dataKey]));
-    const maxValue = Math.max(...validData.map(d => d[dataKey]));
-    const valueRange = maxValue - minValue || 1; // Avoid division by zero
+    const minValue = Math.min(...chartData.map(d => d[dataKey]));
+    const maxValue = Math.max(...chartData.map(d => d[dataKey]));
+    const valueRange = maxValue - minValue;
     
     let closestIndex = 0;
     let closestDistance = Infinity;
     
-    validData.forEach((point, index) => {
+    chartData.forEach((point, index) => {
       // Calculate the exact screen position using the same formula as the SVG polyline
-      const svgX = (index / (validData.length - 1)) * 100; // SVG percentage (0-100)
+      const svgX = (index / (chartData.length - 1)) * 100; // SVG percentage (0-100)
       const svgY = 100 - ((point[dataKey] - minValue) / valueRange * 100); // SVG percentage (0-100, flipped)
       
       // Convert SVG percentages to actual pixel coordinates
@@ -595,7 +601,7 @@ function VitalChart({ title, data, dataKey, unit, color, icon: Icon, normalRange
       }
     });
     
-    const hoveredData = validData[closestIndex];
+    const hoveredData = chartData[closestIndex];
     
     if (hoveredData) {
       setTooltipData({
@@ -649,15 +655,10 @@ function VitalChart({ title, data, dataKey, unit, color, icon: Icon, normalRange
                 fill="none"
                 stroke={color}
                 strokeWidth="2"
-                points={chartData
-                  .filter(point => point[dataKey] != null && !isNaN(point[dataKey]))
-                  .map((point, i, validData) => {
-                    const minValue = Math.min(...validData.map(d => d[dataKey]));
-                    const maxValue = Math.max(...validData.map(d => d[dataKey]));
-                    const range = maxValue - minValue || 1; // Avoid division by zero
-                    return `${(i / (validData.length - 1)) * 100},${100 - ((point[dataKey] - minValue) / range) * 100}`;
-                  })
-                  .join(' ')}
+                points={chartData.map((point, i) => 
+                  `${(i / (chartData.length - 1)) * 100},${100 - ((point[dataKey] - Math.min(...chartData.map(d => d[dataKey]))) / 
+                  (Math.max(...chartData.map(d => d[dataKey])) - Math.min(...chartData.map(d => d[dataKey])))) * 100}`
+                ).join(' ')}
               />
             )}
           </svg>

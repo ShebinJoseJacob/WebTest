@@ -392,12 +392,6 @@ class Attendance {
     return this.check_in_time && this.check_out_time;
   }
 
-  // Delete all attendance records (for development/testing)
-  static async deleteAll() {
-    const result = await query('DELETE FROM attendance');
-    return result.rowCount;
-  }
-
   // Convert to JSON
   toJSON() {
     return {
