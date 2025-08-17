@@ -736,14 +736,24 @@ function SupervisorDashboard() {
     });
 
     socketRef.current.on('new_alert', (data) => {
-      setAlerts(prev => [data.alert, ...prev]);
+      setAlerts(prev => {
+        // Check if alert already exists to prevent duplicates
+        const exists = prev.some(alert => alert.id === data.alert.id);
+        if (exists) return prev;
+        return [data.alert, ...prev];
+      });
       if (data.alert.severity === 'critical' && soundEnabled) {
         // Audio handled by socket manager
       }
     });
 
     socketRef.current.on('critical_alert', (data) => {
-      setAlerts(prev => [data.alert, ...prev]);
+      setAlerts(prev => {
+        // Check if alert already exists to prevent duplicates
+        const exists = prev.some(alert => alert.id === data.alert.id);
+        if (exists) return prev;
+        return [data.alert, ...prev];
+      });
       if (soundEnabled) {
         // Audio handled by socket manager
       }

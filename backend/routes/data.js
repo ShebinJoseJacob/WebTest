@@ -76,11 +76,17 @@ router.post('/', async (req, res) => {
     if (vital.isAbnormal()) {
       const alerts = await Alert.createFromVital(vital, device.id);
       
-      // Emit real-time alerts
+      // Emit real-time alerts with enriched data
       const io = req.app.get('io');
       if (io && alerts.length > 0) {
         for (const alert of alerts) {
-          io.broadcastVitalAlert(alert, vital);
+          // Enrich alert with user information for real-time display
+          const enrichedAlert = {
+            ...alert,
+            user_name: device.name,
+            device_serial: device.device?.serial || null
+          };
+          io.broadcastVitalAlert(enrichedAlert, vital);
         }
       }
     }
