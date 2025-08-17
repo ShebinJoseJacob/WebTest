@@ -767,9 +767,16 @@ function SupervisorDashboard() {
       ));
     });
 
-    socketRef.current.on('alert', (alert) => {
-      setAlerts(prev => [alert, ...prev]);
-      if (alert.severity === 'critical' && soundEnabled) {
+    socketRef.current.on('new_alert', (data) => {
+      setAlerts(prev => [data.alert, ...prev]);
+      if (data.alert.severity === 'critical' && soundEnabled) {
+        // Audio handled by socket manager
+      }
+    });
+
+    socketRef.current.on('critical_alert', (data) => {
+      setAlerts(prev => [data.alert, ...prev]);
+      if (soundEnabled) {
         // Audio handled by socket manager
       }
     });
