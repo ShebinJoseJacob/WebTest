@@ -559,12 +559,8 @@ function EmployeeDashboard() {
 
 // Vital Chart Component for Employee Dashboard
 function VitalChart({ title, data, dataKey, unit, color, icon: Icon, normalRange }) {
-  // Use real data, fallback to sample data if no data available
-  const chartData = data.length === 0 ? [
-    { heart_rate: 72.5, spo2: 98.2, temperature: 36.8, timestamp: new Date(Date.now() - 120000) },
-    { heart_rate: 75.1, spo2: 97.9, temperature: 36.9, timestamp: new Date(Date.now() - 60000) },
-    { heart_rate: 74.0, spo2: 98.6, temperature: 36.8, timestamp: new Date() }
-  ] : data;
+  // Use real data only, no fallback mock data
+  const chartData = data || [];
   
   const latestValue = chartData[chartData.length - 1]?.[dataKey];
   const [showTooltip, setShowTooltip] = useState(false);
@@ -645,19 +641,28 @@ function VitalChart({ title, data, dataKey, unit, color, icon: Icon, normalRange
           setTooltipData(null);
         }}
       >
-        <svg className="w-full h-full pointer-events-none">
-          {chartData.length > 1 && (
-            <polyline
-              fill="none"
-              stroke={color}
-              strokeWidth="2"
-              points={chartData.map((point, i) => 
-                `${(i / (chartData.length - 1)) * 100},${100 - ((point[dataKey] - Math.min(...chartData.map(d => d[dataKey]))) / 
-                (Math.max(...chartData.map(d => d[dataKey])) - Math.min(...chartData.map(d => d[dataKey])))) * 100}`
-              ).join(' ')}
-            />
-          )}
-        </svg>
+        {chartData.length === 0 ? (
+          <div className="flex items-center justify-center h-full text-gray-400">
+            <div className="text-center">
+              <Icon className="h-8 w-8 mx-auto mb-2 opacity-50" />
+              <div className="text-sm">No data available</div>
+            </div>
+          </div>
+        ) : (
+          <svg className="w-full h-full pointer-events-none">
+            {chartData.length > 1 && (
+              <polyline
+                fill="none"
+                stroke={color}
+                strokeWidth="2"
+                points={chartData.map((point, i) => 
+                  `${(i / (chartData.length - 1)) * 100},${100 - ((point[dataKey] - Math.min(...chartData.map(d => d[dataKey]))) / 
+                  (Math.max(...chartData.map(d => d[dataKey])) - Math.min(...chartData.map(d => d[dataKey])))) * 100}`
+                ).join(' ')}
+              />
+            )}
+          </svg>
+        )}
         
         {/* Interactive Tooltip */}
         {showTooltip && tooltipData && (
@@ -1823,15 +1828,22 @@ function EmployeeDetailModal({ employee, alerts = [], onClose }) {
   const vital = employee.latestVital;
   const isOnline = vital?.timestamp && new Date() - new Date(vital.timestamp) < 300000;
 
-  // Generate mock historical data for the employee
-  const historicalVitals = useMemo(() => {
-    return Array.from({ length: 24 }, (_, i) => ({
-      time: new Date(Date.now() - (23 - i) * 60 * 60 * 1000),
-      heart_rate: vital?.heart_rate ? vital.heart_rate + Math.sin(i / 4) * 5 + (Math.random() - 0.5) * 10 : 70 + Math.sin(i / 4) * 5,
-      spo2: vital?.spo2 ? vital.spo2 + (Math.random() - 0.5) * 2 : 97 + (Math.random() - 0.5) * 2,
-      temperature: vital?.temperature ? vital.temperature + (Math.random() - 0.5) * 0.5 : 36.5 + (Math.random() - 0.5) * 0.8
-    }));
-  }, [employee.id, vital]);
+  // Use real historical vitals data
+  const [historicalVitals, setHistoricalVitals] = useState([]);
+  
+  useEffect(() => {
+    const loadHistoricalVitals = async () => {
+      try {
+        const response = await api.request(`/vitals/history?userId=${employee.id}&hours=24`);
+        setHistoricalVitals(response.vitals || []);
+      } catch (error) {
+        console.error('Failed to load historical vitals:', error);
+        setHistoricalVitals([]); // Empty array if no data
+      }
+    };
+    
+    loadHistoricalVitals();
+  }, [employee.id]);
 
   const mockAttendance = {
     check_in_time: new Date().setHours(8, 30, 0, 0),
