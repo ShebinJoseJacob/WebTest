@@ -131,4 +131,40 @@ router.get('/devices', async (req, res) => {
   }
 });
 
+// @route   GET /api/data/employees
+// @desc    Get all employees with devices and latest vitals
+// @access  Private  
+router.get('/employees', async (req, res) => {
+  try {
+    const employees = await User.findAll({ active: true });
+    
+    res.json({
+      employees: employees.map(user => ({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        department: user.department,
+        phone: user.phone,
+        emergency_contact_name: user.emergency_contact_name,
+        emergency_contact_phone: user.emergency_contact_phone,
+        device: user.device ? {
+          id: user.device.id,
+          serial: user.device.serial,
+          model: user.device.device_model,
+          firmware_version: user.device.firmware_version,
+          battery_level: user.device.battery_level,
+          last_seen: user.device.last_seen,
+          is_active: user.device.is_active
+        } : null
+      }))
+    });
+
+  } catch (error) {
+    console.error('Get employees error:', error);
+    res.status(500).json({
+      error: 'Internal server error while fetching employees'
+    });
+  }
+});
+
 module.exports = router;
