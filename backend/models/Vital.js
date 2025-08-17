@@ -234,6 +234,12 @@ class Vital {
     return result.rowCount;
   }
 
+  // Delete all vitals (for development/testing)
+  static async deleteAll() {
+    const result = await query('DELETE FROM vitals');
+    return result.rowCount;
+  }
+
   // Get vitals trend analysis
   static async getTrendAnalysis(userId, days = 7) {
     const result = await query(`

@@ -487,4 +487,24 @@ router.delete('/cleanup', roleAuth(['supervisor']), async (req, res) => {
   }
 });
 
+// @route   DELETE /api/vitals/clear-all
+// @desc    Delete all vital records (development/testing only)
+// @access  Private (Supervisor only)
+router.delete('/clear-all', roleAuth(['supervisor']), async (req, res) => {
+  try {
+    const deletedCount = await Vital.deleteAll();
+
+    res.json({
+      message: 'All vitals cleared successfully',
+      deletedRecords: deletedCount
+    });
+
+  } catch (error) {
+    console.error('Clear all vitals error:', error);
+    res.status(500).json({
+      error: 'Internal server error during vitals clearing'
+    });
+  }
+});
+
 module.exports = router;
