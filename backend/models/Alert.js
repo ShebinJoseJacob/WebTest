@@ -426,6 +426,12 @@ class Alert {
     return result.rowCount;
   }
 
+  // Delete all alerts (for development/testing)
+  static async deleteAll() {
+    const result = await query('DELETE FROM alerts');
+    return result.rowCount;
+  }
+
   // Get response time statistics
   static async getResponseTimeStats(timeRange = '7 days') {
     const result = await query(`

@@ -145,8 +145,9 @@ class ApiService {
   }
 
   async acknowledgeAlert(alertId) {
-    return this.request(`/alerts/${alertId}/acknowledge`, {
+    return this.request('/alerts/acknowledge', {
       method: 'POST',
+      body: JSON.stringify({ alertIds: [alertId] }),
     });
   }
 }
@@ -771,11 +772,16 @@ function SupervisorDashboard() {
 
   const handleAcknowledgeAlert = async (alertId) => {
     try {
+      // Call the API to acknowledge the alert
+      await api.acknowledgeAlert(alertId);
+      
+      // Update local state only after successful API call
       setAlerts(prev => prev.map(alert => 
-        alert.id === alertId ? { ...alert, acknowledged: true } : alert
+        alert.id === alertId ? { ...alert, acknowledged: true, acknowledged_by: user.id, acknowledged_at: new Date().toISOString() } : alert
       ));
     } catch (error) {
       console.error('Failed to acknowledge alert:', error);
+      // Optionally show a user-friendly error message
     }
   };
 

@@ -542,4 +542,24 @@ router.delete('/cleanup', roleAuth(['supervisor']), async (req, res) => {
   }
 });
 
+// @route   DELETE /api/alerts/clear-all
+// @desc    Delete all alerts (development/testing only)
+// @access  Private (Supervisor only)
+router.delete('/clear-all', roleAuth(['supervisor']), async (req, res) => {
+  try {
+    const deletedCount = await Alert.deleteAll();
+
+    res.json({
+      message: 'All alerts cleared successfully',
+      deletedRecords: deletedCount
+    });
+
+  } catch (error) {
+    console.error('Clear all alerts error:', error);
+    res.status(500).json({
+      error: 'Internal server error during alert clearing'
+    });
+  }
+});
+
 module.exports = router;
