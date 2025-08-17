@@ -17,17 +17,15 @@ const attendanceRoutes = require('./routes/attendance');
 
 const authMiddleware = require('./middleware/auth');
 const errorHandler = require('./middleware/errorHandler');
-const socketAuth = require('./middleware/socketAuth');
+const { initializeSocket } = require('./socket');
 
 const app = express();
+
+// Trust proxy for production deployment (Render.com, Heroku, etc.)
+app.set('trust proxy', 1);
+
 const server = http.createServer(app);
-const io = socketIo(server, {
-  cors: {
-    origin: process.env.FRONTEND_URL || "http://localhost:3000",
-    methods: ["GET", "POST"],
-    credentials: true
-  }
-});
+const io = initializeSocket(server);
 
 const PORT = process.env.PORT || 5000;
 
@@ -59,6 +57,47 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Database test endpoint
+const { testConnection, query } = require('./config/db');
+app.get('/api/debug/db-test', async (req, res) => {
+  try {
+    const isConnected = await testConnection();
+    if (!isConnected) {
+      return res.status(500).json({ 
+        error: 'Database connection failed',
+        env: {
+          NODE_ENV: process.env.NODE_ENV,
+          DATABASE_URL: process.env.DATABASE_URL ? 'SET' : 'NOT SET',
+          FRONTEND_URL: process.env.FRONTEND_URL || 'NOT SET'
+        }
+      });
+    }
+    
+    // Test if users table exists and has data
+    const userCount = await query('SELECT COUNT(*) FROM users');
+    
+    res.json({
+      status: 'Database connected',
+      userCount: userCount.rows[0].count,
+      env: {
+        NODE_ENV: process.env.NODE_ENV,
+        DATABASE_URL: process.env.DATABASE_URL ? 'SET' : 'NOT SET', 
+        FRONTEND_URL: process.env.FRONTEND_URL || 'NOT SET'
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: 'Database test failed',
+      message: error.message,
+      env: {
+        NODE_ENV: process.env.NODE_ENV,
+        DATABASE_URL: process.env.DATABASE_URL ? 'SET' : 'NOT SET',
+        FRONTEND_URL: process.env.FRONTEND_URL || 'NOT SET'
+      }
+    });
+  }
+});
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/data', dataRoutes); // Public for IoT devices
@@ -67,35 +106,7 @@ app.use('/api/alerts', authMiddleware, alertsRoutes);
 app.use('/api/location', authMiddleware, locationRoutes);
 app.use('/api/attendance', authMiddleware, attendanceRoutes);
 
-// Socket.io authentication middleware
-io.use(socketAuth);
-
-// Socket.io connection handling
-io.on('connection', (socket) => {
-  console.log(`User connected: ${socket.userId} (${socket.userRole})`);
-  
-  // Join user-specific room
-  socket.join(`user_${socket.userId}`);
-  
-  // Join role-specific room for supervisors
-  if (socket.userRole === 'supervisor') {
-    socket.join('supervisors');
-  }
-  
-  // Handle alert acknowledgment
-  socket.on('acknowledge_alert', (alertId) => {
-    // This will be handled by the alerts service
-    socket.broadcast.to('supervisors').emit('alert_acknowledged', {
-      alertId,
-      acknowledgedBy: socket.userId,
-      timestamp: new Date()
-    });
-  });
-  
-  socket.on('disconnect', () => {
-    console.log(`User disconnected: ${socket.userId}`);
-  });
-});
+// Socket.io is now initialized and configured in socket.js
 
 // Make io available to routes
 app.set('io', io);
