@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useContext, createContext, useCallback, useMemo, useRef } from 'react';
+import io from 'socket.io-client';
 import { 
   Heart, Activity, Thermometer, MapPin, AlertTriangle, 
   Users, Bell, Calendar, Shield, LogOut, CheckCircle, 
@@ -152,10 +153,10 @@ class ApiService {
 
 const api = new ApiService();
 
-// Enhanced Socket Manager with Alert Audio
+// Real Socket.IO Manager with Alert Audio
 class AlertSocketManager {
   constructor() {
-    this.listeners = {};
+    this.socket = null;
     this.connected = false;
     this.audioContext = null;
     this.alertSound = null;
@@ -165,26 +166,9 @@ class AlertSocketManager {
   setupAudio() {
     try {
       this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      this.createAlertSound();
     } catch (e) {
       console.warn('Audio context not available');
     }
-  }
-
-  createAlertSound() {
-    if (!this.audioContext) return;
-    
-    // Create a simple alert beep
-    const oscillator = this.audioContext.createOscillator();
-    const gainNode = this.audioContext.createGain();
-    
-    oscillator.connect(gainNode);
-    gainNode.connect(this.audioContext.destination);
-    
-    oscillator.frequency.setValueAtTime(800, this.audioContext.currentTime);
-    gainNode.gain.setValueAtTime(0.3, this.audioContext.currentTime);
-    
-    this.alertSound = { oscillator, gainNode };
   }
 
   playAlertSound() {
@@ -215,64 +199,47 @@ class AlertSocketManager {
   }
 
   connect(token) {
-    this.connected = true;
-    console.log('Mock WebSocket connected');
-    this.startSimulation();
+    const socketUrl = process.env.REACT_APP_WS_URL || 'https://iot-monitoring-backend-sgba.onrender.com';
+    
+    this.socket = io(socketUrl, {
+      auth: {
+        token: token
+      },
+      transports: ['websocket', 'polling']
+    });
+
+    this.socket.on('connect', () => {
+      this.connected = true;
+      console.log('Real WebSocket connected to:', socketUrl);
+    });
+
+    this.socket.on('disconnect', () => {
+      this.connected = false;
+      console.log('WebSocket disconnected');
+    });
+
+    this.socket.on('connect_error', (error) => {
+      console.error('WebSocket connection error:', error);
+    });
   }
 
   on(event, callback) {
-    if (!this.listeners[event]) {
-      this.listeners[event] = [];
+    if (this.socket) {
+      this.socket.on(event, callback);
     }
-    this.listeners[event].push(callback);
   }
 
   emit(event, data) {
-    if (this.listeners[event]) {
-      this.listeners[event].forEach(callback => callback(data));
+    if (this.socket) {
+      this.socket.emit(event, data);
     }
   }
 
-  startSimulation() {
-    // Simulate real-time vital updates
-    setInterval(() => {
-      if (this.connected) {
-        this.emit('vital-update', {
-          userId: Math.ceil(Math.random() * 3).toString(),
-          heart_rate: 60 + Math.round(Math.random() * 40),
-          spo2: 94 + Math.round(Math.random() * 4),
-          temperature: 36.5 + (Math.random() * 1.5),
-          latitude: 40.7128 + (Math.random() - 0.5) * 0.01,
-          longitude: -74.0060 + (Math.random() - 0.5) * 0.01,
-          timestamp: new Date().toISOString()
-        });
-      }
-    }, 5000);
-
-    // Simulate critical alerts with audio
-    setInterval(() => {
-      if (this.connected && Math.random() > 0.8) {
-        const alert = {
-          id: Math.random().toString(36),
-          user_id: Math.ceil(Math.random() * 3).toString(),
-          type: ['fall_detected', 'heart_rate_critical', 'spo2_critical'][Math.floor(Math.random() * 3)],
-          severity: ['high', 'critical'][Math.floor(Math.random() * 2)],
-          message: 'Critical alert detected - immediate attention required',
-          acknowledged: false,
-          timestamp: new Date().toISOString()
-        };
-        
-        if (alert.severity === 'critical') {
-          this.playAlertSound();
-        }
-        
-        this.emit('alert', alert);
-      }
-    }, 20000);
-  }
-
   disconnect() {
-    this.connected = false;
+    if (this.socket) {
+      this.socket.disconnect();
+      this.connected = false;
+    }
   }
 }
 
