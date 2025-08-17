@@ -47,8 +47,8 @@ router.post('/', async (req, res) => {
     } = value;
 
     // Find device by serial
-    const userWithDevice = await User.findWithDevice(null, device_serial);
-    if (!userWithDevice || !userWithDevice.device) {
+    const device = await User.findWithDevice(null, device_serial);
+    if (!device) {
       return res.status(404).json({
         error: 'Device not found'
       });
@@ -56,7 +56,7 @@ router.post('/', async (req, res) => {
 
     // Create vital record
     const vital = await Vital.create({
-      device_id: userWithDevice.device.id,
+      device_id: device.device.id,
       heart_rate,
       spo2,
       temperature,
@@ -69,57 +69,32 @@ router.post('/', async (req, res) => {
 
     // Process attendance (first signal of the day)
     if (heart_rate || spo2 || temperature) {
-      await Attendance.processFirstSignal(userWithDevice.id, timestamp);
+      await Attendance.processFirstSignal(device.id, timestamp);
     }
 
-    // Check for alerts with debugging
-    const io = req.app.get('io');
-    let alertsCreated = 0;
-    
-    try {
-      console.log('Vital data for alert check:', {
-        id: vital.id,
-        heart_rate: vital.heart_rate,
-        spo2: vital.spo2,
-        temperature: vital.temperature,
-        fall_detected: vital.fall_detected,
-        has_isAbnormal: typeof vital.isAbnormal === 'function'
-      });
+    // Check for alerts
+    if (vital.isAbnormal()) {
+      const alerts = await Alert.createFromVital(vital, device.id);
       
-      const isAbnormal = vital.isAbnormal();
-      console.log('isAbnormal result:', isAbnormal);
-      
-      if (isAbnormal) {
-        console.log('Creating alerts for vital:', vital.id);
-        const alerts = await Alert.createFromVital(vital, userWithDevice.id);
-        alertsCreated = alerts ? alerts.length : 0;
-        console.log('Alerts created:', alertsCreated);
-        
-        // Emit real-time alerts
-        if (io && alerts && alerts.length > 0) {
-          for (const alert of alerts) {
-            if (io.broadcastVitalAlert && typeof io.broadcastVitalAlert === 'function') {
-              io.broadcastVitalAlert(alert, vital);
-            }
-          }
+      // Emit real-time alerts
+      const io = req.app.get('io');
+      if (io && alerts.length > 0) {
+        for (const alert of alerts) {
+          io.broadcastVitalAlert(alert, vital);
         }
-      } else {
-        console.log('Vital is not abnormal, no alerts created');
       }
-    } catch (alertError) {
-      console.error('Alert processing error:', alertError);
-      // Continue execution even if alerts fail
     }
 
     // Emit real-time vital update
-    if (io && io.broadcastVitalUpdate && typeof io.broadcastVitalUpdate === 'function') {
-      io.broadcastVitalUpdate(vital, userWithDevice.id);
+    const io = req.app.get('io');
+    if (io) {
+      io.broadcastVitalUpdate(vital, device.id);
     }
 
     res.status(201).json({
       message: 'Data ingested successfully',
       vital_id: vital.id,
-      alerts_created: alertsCreated,
+      alerts_created: vital.isAbnormal() ? vital.getAbnormalityDetails().length : 0,
       timestamp: new Date().toISOString()
     });
 

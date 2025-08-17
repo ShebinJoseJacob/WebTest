@@ -31,8 +31,8 @@ class Vital {
     } = vitalData;
 
     const result = await query(
-      `INSERT INTO vitals (device_id, heart_rate, spo2, temperature, latitude, longitude, gps_accuracy, fall_detected, timestamp)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      `INSERT INTO vitals (device_id, heart_rate, spo2, temperature, latitude, longitude, gps_accuracy, fall_detected, timestamp, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP)
        RETURNING *`,
       [device_id, heart_rate, spo2, temperature, latitude, longitude, gps_accuracy, fall_detected, timestamp]
     );
@@ -289,18 +289,11 @@ class Vital {
 
   // Check if vital reading is abnormal
   isAbnormal() {
-    console.log('Checking isAbnormal with values:', {
-      heart_rate: this.heart_rate,
-      spo2: this.spo2,
-      temperature: this.temperature,
-      fall_detected: this.fall_detected
-    });
-    
     return (
-      (this.heart_rate !== null && this.heart_rate !== undefined && (this.heart_rate < 60 || this.heart_rate > 100)) ||
-      (this.spo2 !== null && this.spo2 !== undefined && this.spo2 < 95) ||
-      (this.temperature !== null && this.temperature !== undefined && (this.temperature < 36.0 || this.temperature > 37.5)) ||
-      this.fall_detected === true
+      this.heart_rate < 60 || this.heart_rate > 100 ||
+      this.spo2 < 95 ||
+      this.temperature < 36.0 || this.temperature > 37.5 ||
+      this.fall_detected
     );
   }
 

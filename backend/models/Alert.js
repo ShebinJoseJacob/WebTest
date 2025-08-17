@@ -8,7 +8,6 @@ class Alert {
     this.user_id = alertData.user_id;
     this.type = alertData.type;
     this.severity = alertData.severity;
-    this.title = alertData.title;
     this.message = alertData.message;
     this.value = parseFloat(alertData.value);
     this.threshold = parseFloat(alertData.threshold);
@@ -28,7 +27,6 @@ class Alert {
       user_id,
       type,
       severity,
-      title,
       message,
       value = null,
       threshold = null,
@@ -36,10 +34,10 @@ class Alert {
     } = alertData;
 
     const result = await query(
-      `INSERT INTO alerts (device_id, user_id, type, severity, title, message, value, threshold, timestamp, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP)
+      `INSERT INTO alerts (device_id, user_id, type, severity, message, value, threshold, timestamp, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP)
        RETURNING *`,
-      [device_id, user_id, type, severity, title, message, value, threshold, timestamp]
+      [device_id, user_id, type, severity, message, value, threshold, timestamp]
     );
 
     return new Alert(result.rows[0]);
@@ -331,7 +329,6 @@ class Alert {
         user_id: deviceUserId,
         type: 'fall',
         severity: 'critical',
-        title: 'Fall Detected',
         message: 'Fall detected - immediate attention required',
         timestamp: vital.timestamp
       });
@@ -343,7 +340,6 @@ class Alert {
         user_id: deviceUserId,
         type: 'heart_rate',
         severity: 'medium',
-        title: 'Low Heart Rate',
         message: 'Low heart rate detected',
         value: vital.heart_rate,
         threshold: 60,
@@ -357,7 +353,6 @@ class Alert {
         user_id: deviceUserId,
         type: 'heart_rate',
         severity: 'high',
-        title: 'High Heart Rate',
         message: 'High heart rate detected',
         value: vital.heart_rate,
         threshold: 100,
@@ -371,7 +366,6 @@ class Alert {
         user_id: deviceUserId,
         type: 'spo2',
         severity: 'high',
-        title: 'Low Oxygen Saturation',
         message: 'Low oxygen saturation detected',
         value: vital.spo2,
         threshold: 95,
@@ -385,7 +379,6 @@ class Alert {
         user_id: deviceUserId,
         type: 'temperature',
         severity: 'medium',
-        title: 'Low Body Temperature',
         message: 'Low body temperature detected',
         value: vital.temperature,
         threshold: 36.0,
@@ -399,7 +392,6 @@ class Alert {
         user_id: deviceUserId,
         type: 'temperature',
         severity: 'medium',
-        title: 'High Body Temperature',
         message: 'High body temperature detected',
         value: vital.temperature,
         threshold: 37.5,
