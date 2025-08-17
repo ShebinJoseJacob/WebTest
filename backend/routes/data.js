@@ -4,6 +4,7 @@ const Vital = require('../models/Vital');
 const Alert = require('../models/Alert');
 const User = require('../models/User');
 const Attendance = require('../models/Attendance');
+const Device = require('../models/Device');
 
 const router = express.Router();
 
@@ -66,6 +67,9 @@ router.post('/', async (req, res) => {
       fall_detected,
       timestamp
     });
+
+    // Update device last_seen timestamp
+    await Device.updateLastSeen(device.device.id);
 
     // Process attendance (first signal of the day)
     if (heart_rate || spo2 || temperature) {
