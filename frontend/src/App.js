@@ -69,7 +69,13 @@ class ApiService {
 
   // Employee-specific endpoints (only own data)
   async getMyVitals() {
-    return this.request('/vitals/my');
+    return this.request('/vitals/latest');
+  }
+  
+  async getMyVitalsHistory(timeRange = '24h') {
+    const hoursMap = { '1h': 1, '6h': 6, '24h': 24, '7d': 168 };
+    const hours = hoursMap[timeRange] || 24;
+    return this.request(`/vitals/history?hours=${hours}`);
   }
 
   async getMyAlerts() {
@@ -385,8 +391,8 @@ function EmployeeDashboard() {
     setLoading(true);
     try {
       // Load real employee data from API
-      const vitalsResponse = await api.getMyVitals();
-      const realVitals = vitalsResponse.vitals || [];
+      const vitalsHistoryResponse = await api.getMyVitalsHistory('24h');
+      const realVitals = vitalsHistoryResponse.vitals || [];
       
       const alertsResponse = await api.getMyAlerts();
       const realAlerts = alertsResponse.alerts || [];
