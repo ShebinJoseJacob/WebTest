@@ -956,6 +956,7 @@ function SupervisorDashboard() {
       {selectedEmployee && (
         <EmployeeDetailModal 
           employee={selectedEmployee}
+          alerts={alerts.filter(alert => alert.user_id === selectedEmployee.id)}
           onClose={() => setSelectedEmployee(null)}
         />
       )}
@@ -1817,7 +1818,7 @@ function AttendanceTab({ employees }) {
 }
 
 // Employee Detail Modal
-function EmployeeDetailModal({ employee, onClose }) {
+function EmployeeDetailModal({ employee, alerts = [], onClose }) {
   const [activeTab, setActiveTab] = useState('overview');
   const vital = employee.latestVital;
   const isOnline = vital?.timestamp && new Date() - new Date(vital.timestamp) < 300000;
@@ -1838,16 +1839,6 @@ function EmployeeDetailModal({ employee, onClose }) {
     date: new Date().toDateString()
   };
 
-  const mockAlerts = [
-    {
-      id: '1',
-      type: 'heart_rate_elevated',
-      severity: 'medium',
-      message: `Heart rate ${vital?.heart_rate || 85} bpm elevated above normal range`,
-      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
-      acknowledged: true
-    }
-  ];
 
   return (
     <div 
@@ -1919,7 +1910,7 @@ function EmployeeDetailModal({ employee, onClose }) {
               employee={employee}
               vital={vital}
               attendance={mockAttendance}
-              alerts={mockAlerts}
+              alerts={alerts}
             />
           )}
           
@@ -1941,7 +1932,7 @@ function EmployeeDetailModal({ employee, onClose }) {
           {activeTab === 'alerts' && (
             <EmployeeAlertsTab 
               employee={employee}
-              alerts={mockAlerts}
+              alerts={alerts}
             />
           )}
         </div>
