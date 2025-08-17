@@ -732,10 +732,10 @@ function SupervisorDashboard() {
     socketRef.current = new AlertSocketManager();
     socketRef.current.connect(localStorage.getItem('token'));
     
-    socketRef.current.on('vital-update', (data) => {
+    socketRef.current.on('vital_update', (data) => {
       setEmployees(prev => prev.map(emp => 
         emp.id === data.userId 
-          ? { ...emp, latestVital: { ...emp.latestVital, ...data } }
+          ? { ...emp, latestVital: { ...emp.latestVital, ...data.vital } }
           : emp
       ));
     });
@@ -1843,6 +1843,22 @@ function EmployeeDetailModal({ employee, alerts = [], onClose }) {
     };
     
     loadHistoricalVitals();
+    
+    // Set up real-time vital updates for this employee
+    const socketManager = new AlertSocketManager();
+    socketManager.connect(localStorage.getItem('token'));
+    
+    socketManager.on('vital_update', (data) => {
+      if (data.userId === employee.id) {
+        // Add new vital to historical data
+        setHistoricalVitals(prev => [...prev, data.vital]);
+      }
+    });
+    
+    // Cleanup
+    return () => {
+      socketManager.disconnect();
+    };
   }, [employee.id]);
 
   const mockAttendance = {
