@@ -188,11 +188,24 @@ function LocationCard({ employee }) {
 export function AlertsTab({ alerts, onAcknowledgeAlert }) {
   const [filter, setFilter] = useState('all');
   
-  const filteredAlerts = alerts.filter(alert => {
-    if (filter === 'critical') return alert.severity === 'critical';
-    if (filter === 'unacknowledged') return !alert.acknowledged;
-    return true;
-  });
+  const filteredAlerts = alerts
+    .filter(alert => {
+      if (filter === 'critical') return alert.severity === 'critical';
+      if (filter === 'unacknowledged') return !alert.acknowledged;
+      return true;
+    })
+    .sort((a, b) => {
+      // Sort unacknowledged alerts first
+      if (a.acknowledged !== b.acknowledged) {
+        return a.acknowledged ? 1 : -1;
+      }
+      // Then sort by severity (critical > high > medium > low)
+      const severityOrder = { 'critical': 4, 'high': 3, 'medium': 2, 'low': 1 };
+      const severityDiff = (severityOrder[b.severity] || 0) - (severityOrder[a.severity] || 0);
+      if (severityDiff !== 0) return severityDiff;
+      // Finally sort by timestamp (newest first)
+      return new Date(b.timestamp) - new Date(a.timestamp);
+    });
 
   return (
     <div className="space-y-6">
@@ -254,39 +267,127 @@ function AlertCard({ alert, onAcknowledge }) {
     }
   };
 
+  const formatAlertValue = () => {
+    if (alert.type === 'fall') {
+      return 'Fall detected';
+    }
+    if (alert.value === null || alert.value === undefined) {
+      return 'N/A';
+    }
+    
+    const units = {
+      'heart_rate': 'bpm',
+      'spo2': '%',
+      'temperature': '°C'
+    };
+    
+    return `${alert.value}${units[alert.type] || ''}`;
+  };
+
+  const formatThreshold = () => {
+    if (alert.type === 'fall' || alert.threshold === null || alert.threshold === undefined) {
+      return null;
+    }
+    
+    const units = {
+      'heart_rate': 'bpm',
+      'spo2': '%',
+      'temperature': '°C'
+    };
+    
+    const comparisonText = {
+      'heart_rate': alert.value > alert.threshold ? 'above' : 'below',
+      'spo2': alert.value < alert.threshold ? 'below' : 'above',
+      'temperature': alert.value > alert.threshold ? 'above' : 'below'
+    };
+    
+    return `${comparisonText[alert.type]} ${alert.threshold}${units[alert.type] || ''}`;
+  };
+
   return (
-    <div className={`bg-white rounded-xl shadow-sm border-l-4 ${getSeverityColor()}`}>
+    <div className={`bg-white rounded-xl shadow-sm border-l-4 ${getSeverityColor()} ${!alert.acknowledged ? 'ring-2 ring-blue-200' : ''}`}>
       <div className="p-6">
         <div className="flex items-start justify-between">
           <div className="flex-1">
             <div className="flex items-center mb-2">
-              <AlertTriangle className="h-5 w-5 mr-2" />
-              <h3 className="font-semibold">{alert.user_name}</h3>
-              <span className={`ml-2 px-2 py-1 text-xs rounded-full ${
+              <AlertTriangle className={`h-5 w-5 mr-2 ${alert.severity === 'critical' ? 'animate-pulse' : ''}`} />
+              <h3 className="font-semibold text-lg">{alert.user_name}</h3>
+              <span className={`ml-2 px-2 py-1 text-xs rounded-full font-medium ${
                 alert.severity === 'critical' ? 'bg-red-100 text-red-800' :
                 alert.severity === 'high' ? 'bg-orange-100 text-orange-800' :
-                'bg-yellow-100 text-yellow-800'
+                alert.severity === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                'bg-blue-100 text-blue-800'
               }`}>
                 {alert.severity.toUpperCase()}
               </span>
+              {!alert.acknowledged && (
+                <span className="ml-2 px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800 font-medium animate-pulse">
+                  NEEDS ATTENTION
+                </span>
+              )}
             </div>
-            <h4 className="font-medium mb-1">{alert.type.replace(/_/g, ' ').toUpperCase()}</h4>
-            <p className="text-sm mb-3">{alert.message}</p>
-            <div className="text-xs text-gray-500">
-              {new Date(alert.timestamp).toLocaleString()}
+            
+            <h4 className="font-medium mb-2 text-gray-900">
+              {alert.type.replace(/_/g, ' ').toUpperCase()} ALERT
+            </h4>
+            
+            <div className="bg-gray-50 rounded-lg p-3 mb-3">
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <span className="font-medium text-gray-700">Current Value:</span>
+                  <div className={`text-lg font-bold ${
+                    alert.severity === 'critical' ? 'text-red-600' :
+                    alert.severity === 'high' ? 'text-orange-600' :
+                    'text-yellow-600'
+                  }`}>
+                    {formatAlertValue()}
+                  </div>
+                </div>
+                {formatThreshold() && (
+                  <div>
+                    <span className="font-medium text-gray-700">Threshold:</span>
+                    <div className="text-lg font-medium text-gray-900">
+                      {formatThreshold()}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            <p className="text-sm text-gray-700 mb-3 font-medium">{alert.message}</p>
+            
+            <div className="flex items-center justify-between text-xs text-gray-500">
+              <span>Device: {alert.device_serial}</span>
+              <span>{new Date(alert.timestamp).toLocaleString()}</span>
             </div>
           </div>
           
           <div className="flex items-center space-x-2 ml-4">
             {alert.acknowledged ? (
-              <div className="flex items-center text-green-600">
-                <CheckCircle className="h-5 w-5 mr-1" />
-                <span className="text-sm">Acknowledged</span>
+              <div className="flex flex-col items-center text-green-600">
+                <div className="flex items-center mb-1">
+                  <CheckCircle className="h-5 w-5 mr-1" />
+                  <span className="text-sm font-medium">Acknowledged</span>
+                </div>
+                {alert.acknowledged_by_name && (
+                  <span className="text-xs text-gray-500">
+                    by {alert.acknowledged_by_name}
+                  </span>
+                )}
+                {alert.acknowledged_at && (
+                  <span className="text-xs text-gray-500">
+                    {new Date(alert.acknowledged_at).toLocaleString()}
+                  </span>
+                )}
               </div>
             ) : (
               <button
                 onClick={() => onAcknowledge(alert.id)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className={`px-4 py-2 text-white rounded-lg transition-colors font-medium ${
+                  alert.severity === 'critical' 
+                    ? 'bg-red-600 hover:bg-red-700 animate-pulse' 
+                    : 'bg-blue-600 hover:bg-blue-700'
+                }`}
               >
                 Acknowledge
               </button>
