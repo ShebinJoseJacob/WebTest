@@ -725,6 +725,7 @@ function SupervisorDashboard() {
   const [itemsPerPage] = useState(12);
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'table'
   const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [attendanceData, setAttendanceData] = useState({});
   const [filters, setFilters] = useState({
     department: 'all',
     status: 'all',
@@ -791,8 +792,19 @@ function SupervisorDashboard() {
       const alertsResponse = await api.getAllAlerts();
       const realAlerts = alertsResponse.alerts || [];
 
+      // Load real attendance from API
+      const attendanceResponse = await api.getAllAttendance();
+      const realAttendance = attendanceResponse.attendance || [];
+      
+      // Convert attendance array to object keyed by user_id
+      const attendanceMap = {};
+      realAttendance.forEach(att => {
+        attendanceMap[att.user_id] = att;
+      });
+
       setEmployees(realEmployees);
       setAlerts(realAlerts);
+      setAttendanceData(attendanceMap);
     } catch (error) {
       console.error('Failed to load supervisor data:', error);
     } finally {
