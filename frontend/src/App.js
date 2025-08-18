@@ -126,7 +126,7 @@ class ApiService {
   }
 
   async getAllVitals() {
-    return this.request('/vitals/all');
+    return this.request('/vitals/latest');
   }
 
   async getAllAlerts() {
@@ -488,7 +488,7 @@ function EmployeeDashboard() {
               <div className="text-sm text-purple-600 font-medium">Hours Today</div>
               <div className="text-2xl font-bold text-purple-800">
                 {attendance?.check_in_time ? 
-                  Math.round((Date.now() - attendance.check_in_time) / (1000 * 60 * 60) * 10) / 10 : 0}h
+                  Math.max(0, Math.round((Date.now() - new Date(attendance.check_in_time).getTime()) / (1000 * 60 * 60) * 10) / 10) : 0}h
               </div>
             </div>
           </div>
@@ -802,11 +802,32 @@ function SupervisorDashboard() {
         attendanceMap[att.user_id] = att;
       });
 
-      setEmployees(realEmployees);
+      // Load latest vitals for each employee
+      const vitalsResponse = await api.getAllVitals();
+      const latestVitals = vitalsResponse.vitals || [];
+      
+      // Enrich employees with their latest vital signs
+      const employeesWithVitals = realEmployees.map(employee => {
+        const latestVital = latestVitals.find(vital => vital.user_id === employee.id);
+        return {
+          ...employee,
+          latestVital
+        };
+      });
+
+      setEmployees(employeesWithVitals);
       setAlerts(realAlerts);
       setAttendanceData(attendanceMap);
+      
+      console.log('Supervisor data loaded:', { 
+        employees: employeesWithVitals.length, 
+        alerts: realAlerts.length, 
+        attendance: realAttendance.length,
+        vitals: latestVitals.length
+      });
     } catch (error) {
       console.error('Failed to load supervisor data:', error);
+      // Don't clear existing data on error - keep what we have
     } finally {
       setLoading(false);
     }
@@ -2047,7 +2068,7 @@ function EmployeeOverviewTab({ employee, vital, attendance, alerts }) {
               <span className="text-gray-600">Hours Today:</span>
               <span className="font-semibold text-purple-600">
                 {attendance?.check_in_time ? 
-                  Math.round((Date.now() - attendance.check_in_time) / (1000 * 60 * 60) * 10) / 10 : 0}h
+                  Math.max(0, Math.round((Date.now() - new Date(attendance.check_in_time).getTime()) / (1000 * 60 * 60) * 10) / 10) : 0}h
               </span>
             </div>
           </div>

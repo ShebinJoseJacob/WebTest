@@ -198,6 +198,59 @@ const EmployeeDashboard = () => {
     return () => clearInterval(interval);
   }, [autoRefresh, selectedTimeRange]);
 
+  // Real-time socket updates
+  useEffect(() => {
+    if (!isConnected) return;
+
+    // Import socket instance - this might need to be adjusted based on your socket setup
+    const socket = window.socketManager; // or however you access the socket instance
+    
+    if (!socket) return;
+
+    // Listen for vital updates
+    const handleVitalUpdate = (data) => {
+      if (data.userId === user.id) {
+        setDashboardData(prev => ({
+          ...prev,
+          vitals: {
+            ...prev.vitals,
+            latest: data.vital,
+            history: [data.vital, ...prev.vitals.history.slice(0, 19)] // Keep last 20
+          }
+        }));
+        
+        // Show toast notification for significant changes
+        if (data.vital.fall_detected || data.vital.heart_rate > 120 || data.vital.spo2 < 90) {
+          toast.warning('New health alert detected!');
+        }
+      }
+    };
+
+    // Listen for new alerts
+    const handleNewAlert = (data) => {
+      if (data.alert.user_id === user.id) {
+        setDashboardData(prev => ({
+          ...prev,
+          alerts: {
+            ...prev.alerts,
+            recent: [data.alert, ...prev.alerts.recent],
+            unacknowledged: [data.alert, ...prev.alerts.unacknowledged]
+          }
+        }));
+        
+        toast.error(`New alert: ${data.alert.message || 'Health condition detected'}`);
+      }
+    };
+
+    socket.on('vital_update', handleVitalUpdate);
+    socket.on('new_alert', handleNewAlert);
+
+    return () => {
+      socket.off('vital_update', handleVitalUpdate);
+      socket.off('new_alert', handleNewAlert);
+    };
+  }, [isConnected, user.id]);
+
   // Handle manual refresh
   const handleRefresh = () => {
     fetchDashboardData();
