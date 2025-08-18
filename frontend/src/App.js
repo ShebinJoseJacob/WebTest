@@ -77,7 +77,7 @@ class ApiService {
   }
 
   async getMyAttendance() {
-    return this.request('/attendance');
+    return this.request('/attendance/today');
   }
 
   // Supervisor-specific endpoints (all data)
