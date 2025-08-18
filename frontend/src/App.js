@@ -134,7 +134,7 @@ class ApiService {
   }
 
   async getAllAttendance() {
-    return this.request('/attendance/all');
+    return this.request('/attendance/today');
   }
 
   async acknowledgeAlert(alertId) {
@@ -379,7 +379,29 @@ function EmployeeDashboard() {
 
   useEffect(() => {
     loadEmployeeData();
-  }, []);
+    
+    // Set up real-time updates for employee dashboard
+    const socketManager = new AlertSocketManager();
+    socketManager.connect(localStorage.getItem('token'));
+    
+    socketManager.on('vital_update', (data) => {
+      if (data.userId === user.id) {
+        // Add new vital to the vitals array
+        setVitals(prev => [data.vital, ...prev.slice(0, 19)]); // Keep last 20
+      }
+    });
+    
+    socketManager.on('new_alert', (data) => {
+      if (data.alert.user_id === user.id) {
+        setAlerts(prev => [data.alert, ...prev]);
+      }
+    });
+    
+    // Cleanup socket on unmount
+    return () => {
+      socketManager.disconnect();
+    };
+  }, [user.id]);
 
   const loadEmployeeData = async () => {
     setLoading(true);
@@ -392,7 +414,7 @@ function EmployeeDashboard() {
       const realAlerts = alertsResponse.alerts || [];
       
       const attendanceResponse = await api.getMyAttendance();
-      const realAttendance = attendanceResponse.attendance || null;
+      const realAttendance = attendanceResponse.attendance?.[0] || null;
       
       setVitals(realVitals);
       setAlerts(realAlerts);
@@ -955,6 +977,7 @@ function SupervisorDashboard() {
         <EmployeeDetailModal 
           employee={selectedEmployee}
           alerts={alerts.filter(alert => alert.user_id === selectedEmployee.id)}
+          attendanceData={attendanceData}
           onClose={() => setSelectedEmployee(null)}
         />
       )}
@@ -1816,7 +1839,7 @@ function AttendanceTab({ employees }) {
 }
 
 // Employee Detail Modal
-function EmployeeDetailModal({ employee, alerts = [], onClose }) {
+function EmployeeDetailModal({ employee, alerts = [], attendanceData = {}, onClose }) {
   const [activeTab, setActiveTab] = useState('overview');
   const vital = employee.latestVital;
   const isOnline = vital?.timestamp && new Date() - new Date(vital.timestamp) < 300000;
@@ -1854,9 +1877,10 @@ function EmployeeDetailModal({ employee, alerts = [], onClose }) {
     };
   }, [employee.id]);
 
-  const mockAttendance = {
-    check_in_time: new Date().setHours(8, 30, 0, 0),
-    status: 'present',
+  // Get real attendance data for this employee
+  const realAttendance = attendanceData[employee.id] || {
+    check_in_time: null,
+    status: 'absent',
     date: new Date().toDateString()
   };
 
@@ -1930,7 +1954,7 @@ function EmployeeDetailModal({ employee, alerts = [], onClose }) {
             <EmployeeOverviewTab 
               employee={employee}
               vital={vital}
-              attendance={mockAttendance}
+              attendance={realAttendance}
               alerts={alerts}
             />
           )}
