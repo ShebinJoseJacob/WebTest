@@ -744,16 +744,119 @@ function SupervisorDashboard() {
     };
   }, []);
 
+  // Daily Reset Functionality
+  useEffect(() => {
+    const resetEmployeeData = () => {
+      console.log('🔄 Daily reset: Clearing employee UI data');
+      setEmployees(prev => prev.map(emp => ({
+        ...emp,
+        latestVital: null,
+        status: 'offline',
+        lastSeen: null,
+        vitals: [],
+        alerts: []
+      })));
+      
+      // Clear alerts
+      setAlerts([]);
+      
+      // Store reset timestamp
+      localStorage.setItem('lastUIReset', new Date().toISOString());
+    };
+
+    const setupDailyReset = () => {
+      const now = new Date();
+      const tomorrow = new Date(now);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(0, 0, 0, 0); // Midnight
+      
+      const msUntilMidnight = tomorrow.getTime() - now.getTime();
+      
+      console.log(`⏰ Daily reset scheduled in ${Math.round(msUntilMidnight / 1000 / 60)} minutes`);
+      
+      // Set timeout for midnight reset
+      const midnightTimeout = setTimeout(() => {
+        resetEmployeeData();
+        
+        // Set up recurring daily reset
+        const dailyInterval = setInterval(resetEmployeeData, 24 * 60 * 60 * 1000);
+        
+        // Cleanup function will clear this interval
+        return () => clearInterval(dailyInterval);
+      }, msUntilMidnight);
+      
+      return () => clearTimeout(midnightTimeout);
+    };
+
+    // Session-based reset check (backup mechanism)
+    const checkSessionReset = () => {
+      const lastReset = localStorage.getItem('lastUIReset');
+      const today = new Date().toDateString();
+      
+      if (!lastReset) {
+        console.log('🔄 First session: Initializing daily reset');
+        resetEmployeeData();
+        return;
+      }
+      
+      const lastResetDate = new Date(lastReset).toDateString();
+      if (lastResetDate !== today) {
+        console.log('🔄 New day detected: Resetting UI data');
+        resetEmployeeData();
+      }
+    };
+
+    // Check for session reset first
+    checkSessionReset();
+    
+    // Set up midnight timer
+    const cleanup = setupDailyReset();
+    
+    return cleanup;
+  }, []);
+
   const initializeSocket = () => {
     socketRef.current = new AlertSocketManager();
     socketRef.current.connect(localStorage.getItem('token'));
     
     socketRef.current.on('vital_update', (data) => {
-      setEmployees(prev => prev.map(emp => 
-        emp.id === data.userId 
-          ? { ...emp, latestVital: { ...emp.latestVital, ...data.vital } }
-          : emp
-      ));
+      // Helper functions for data validation
+      const isDataFromToday = (timestamp) => {
+        if (!timestamp) return false;
+        const today = new Date().toDateString();
+        return new Date(timestamp).toDateString() === today;
+      };
+
+      const isDataRecent = (timestamp) => {
+        if (!timestamp) return false;
+        const now = Date.now();
+        const dataTime = new Date(timestamp).getTime();
+        return (now - dataTime) < (10 * 60 * 1000); // 10 minutes
+      };
+
+      // Only update if the vital data is from today
+      if (data.vital && isDataFromToday(data.vital.timestamp)) {
+        setEmployees(prev => prev.map(emp => {
+          if (emp.id === data.userId) {
+            const updatedVital = { ...emp.latestVital, ...data.vital };
+            let status = 'offline';
+            
+            if (isDataRecent(updatedVital.timestamp)) {
+              status = 'online';
+            } else if (isDataFromToday(updatedVital.timestamp)) {
+              status = 'away';
+            }
+            
+            return { 
+              ...emp, 
+              latestVital: updatedVital,
+              status,
+              lastSeen: updatedVital.timestamp
+            };
+          }
+          return emp;
+        }));
+      }
     });
 
     socketRef.current.on('new_alert', (data) => {
@@ -806,12 +909,43 @@ function SupervisorDashboard() {
       const vitalsResponse = await api.getAllVitals();
       const latestVitals = vitalsResponse.vitals || [];
       
-      // Enrich employees with their latest vital signs
+      // Helper function to check if data is from today
+      const isDataFromToday = (timestamp) => {
+        if (!timestamp) return false;
+        const today = new Date().toDateString();
+        return new Date(timestamp).toDateString() === today;
+      };
+
+      // Helper function to check if data is recent (within last 10 minutes)
+      const isDataRecent = (timestamp) => {
+        if (!timestamp) return false;
+        const now = Date.now();
+        const dataTime = new Date(timestamp).getTime();
+        return (now - dataTime) < (10 * 60 * 1000); // 10 minutes
+      };
+
+      // Enrich employees with their latest vital signs (filtered for staleness)
       const employeesWithVitals = realEmployees.map(employee => {
         const latestVital = latestVitals.find(vital => vital.user_id === employee.id);
+        
+        // Filter out stale vitals data
+        const filteredVital = latestVital && isDataFromToday(latestVital.timestamp) ? latestVital : null;
+        
+        // Determine employee status based on data freshness
+        let status = 'offline';
+        if (filteredVital) {
+          if (isDataRecent(filteredVital.timestamp)) {
+            status = 'online';
+          } else {
+            status = 'away'; // Has today's data but not recent
+          }
+        }
+        
         return {
           ...employee,
-          latestVital
+          latestVital: filteredVital,
+          status,
+          lastSeen: filteredVital?.timestamp || null
         };
       });
 
@@ -1669,7 +1803,9 @@ function AttendanceTab({ employees }) {
       setError(null);
       
       try {
+        console.log('Fetching attendance for date:', selectedDate);
         const response = await api.request(`/attendance/date/${selectedDate}`);
+        console.log('Attendance API response:', response);
         
         // Transform API response to match the expected format
         const attendanceMap = {};
