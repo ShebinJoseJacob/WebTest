@@ -1659,61 +1659,123 @@ function AttendanceTab({ employees }) {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [attendanceData, setAttendanceData] = useState({});
   const [bulkAction, setBulkAction] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  // Generate automatic attendance data based on vitals
+  // Fetch real attendance data for selected date
   useEffect(() => {
-    const mockData = {};
-    employees.forEach(employee => {
-      const vital = employee.latestVital;
-      const hasVitalData = vital && vital.timestamp;
+    const fetchAttendanceData = async () => {
+      setLoading(true);
+      setError(null);
       
-      // Calculate check-in time (first vital of the day - simulated)
-      const checkInTime = hasVitalData ? 
-        new Date(vital.timestamp).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }) : null;
-      
-      // Calculate check-out time (if no recent vitals, assume checked out)
-      const lastVitalTime = hasVitalData ? new Date(vital.timestamp) : null;
-      const isRecentVital = lastVitalTime && (Date.now() - lastVitalTime.getTime()) < 300000; // 5 minutes
-      const checkOutTime = hasVitalData && !isRecentVital ? 
-        new Date(lastVitalTime.getTime() + 300000).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }) : null;
-      
-      mockData[employee.id] = {
-        checkIn: checkInTime,
-        checkOut: checkOutTime,
-        status: hasVitalData && isRecentVital ? 'present' : hasVitalData ? 'checked_out' : 'absent',
-        shift: employee.shift || 'Morning',
-        department: employee.department,
-        lastVitalTime: lastVitalTime
-      };
-    });
-    setAttendanceData(mockData);
-  }, [employees, selectedDate]);
+      try {
+        const response = await apiService.request(`/attendance/date/${selectedDate}`);
+        
+        // Transform API response to match the expected format
+        const attendanceMap = {};
+        
+        // Initialize all employees as absent
+        employees.forEach(employee => {
+          attendanceMap[employee.id] = {
+            checkIn: null,
+            checkOut: null,
+            status: 'absent',
+            shift: employee.shift || 'Morning',
+            department: employee.department,
+            totalHours: 0
+          };
+        });
+        
+        // Update with actual attendance data
+        response.attendance.forEach(record => {
+          const checkInTime = record.check_in_time ? 
+            new Date(record.check_in_time).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }) : null;
+          const checkOutTime = record.check_out_time ? 
+            new Date(record.check_out_time).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }) : null;
+          
+          attendanceMap[record.user_id] = {
+            checkIn: checkInTime,
+            checkOut: checkOutTime,
+            status: record.status,
+            shift: attendanceMap[record.user_id]?.shift || 'Morning',
+            department: record.department || attendanceMap[record.user_id]?.department,
+            totalHours: record.total_hours || 0
+          };
+        });
+        
+        setAttendanceData(attendanceMap);
+      } catch (err) {
+        console.error('Error fetching attendance data:', err);
+        setError('Failed to load attendance data');
+        
+        // Fallback: show all employees as absent
+        const fallbackData = {};
+        employees.forEach(employee => {
+          fallbackData[employee.id] = {
+            checkIn: null,
+            checkOut: null,
+            status: 'absent',
+            shift: employee.shift || 'Morning',
+            department: employee.department,
+            totalHours: 0
+          };
+        });
+        setAttendanceData(fallbackData);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  // Automatic attendance tracking - no manual intervention needed
+    if (selectedDate && employees.length > 0) {
+      fetchAttendanceData();
+    }
+  }, [selectedDate, employees]);
+
+  // Status display mapping for database values
   const getStatusDisplay = (status) => {
     switch(status) {
       case 'present': return { text: 'Present', color: 'green' };
-      case 'checked_out': return { text: 'Checked Out', color: 'blue' };
+      case 'partial': return { text: 'Partial Day', color: 'yellow' };
       case 'absent': return { text: 'Absent', color: 'red' };
       default: return { text: 'Unknown', color: 'gray' };
     }
   };
 
   const presentCount = Object.values(attendanceData).filter(data => data.status === 'present').length;
-  const checkedOutCount = Object.values(attendanceData).filter(data => data.status === 'checked_out').length;
+  const partialCount = Object.values(attendanceData).filter(data => data.status === 'partial').length;
   const absentCount = Object.values(attendanceData).filter(data => data.status === 'absent').length;
   const onTimeCount = Object.values(attendanceData).filter(data => 
-    (data.status === 'present' || data.status === 'checked_out') && data.checkIn && data.checkIn <= '09:00'
+    (data.status === 'present' || data.status === 'partial') && data.checkIn && data.checkIn <= '09:00'
   ).length;
 
   return (
     <div className="space-y-6">
+      {/* Error Message */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
+            <p className="text-red-700">{error}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Loading State */}
+      {loading && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <RefreshCw className="h-5 w-5 text-blue-500 mr-2 animate-spin" />
+            <p className="text-blue-700">Loading attendance data...</p>
+          </div>
+        </div>
+      )}
+
       {/* Attendance Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600 mb-1">Present Today</p>
+              <p className="text-sm text-gray-600 mb-1">Present</p>
               <p className="text-3xl font-bold text-green-600">{presentCount}</p>
               <p className="text-xs text-gray-500 mt-1">Active employees</p>
             </div>
@@ -1726,12 +1788,12 @@ function AttendanceTab({ employees }) {
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600 mb-1">Checked Out</p>
-              <p className="text-3xl font-bold text-blue-600">{checkedOutCount}</p>
-              <p className="text-xs text-gray-500 mt-1">Completed shifts</p>
+              <p className="text-sm text-gray-600 mb-1">Partial Day</p>
+              <p className="text-3xl font-bold text-yellow-600">{partialCount}</p>
+              <p className="text-xs text-gray-500 mt-1">Incomplete shifts</p>
             </div>
-            <div className="p-3 rounded-xl bg-blue-50 border border-blue-200">
-              <Clock className="h-6 w-6 text-blue-600" />
+            <div className="p-3 rounded-xl bg-yellow-50 border border-yellow-200">
+              <Clock className="h-6 w-6 text-yellow-600" />
             </div>
           </div>
         </div>
@@ -1739,7 +1801,7 @@ function AttendanceTab({ employees }) {
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600 mb-1">Absent Today</p>
+              <p className="text-sm text-gray-600 mb-1">Absent</p>
               <p className="text-3xl font-bold text-red-600">{absentCount}</p>
               <p className="text-xs text-gray-500 mt-1">No vitals received</p>
             </div>
@@ -1809,7 +1871,7 @@ function AttendanceTab({ employees }) {
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check In</th>
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check Out</th>
                 <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Shift</th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Vital</th>
+                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Hours</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 bg-white">
@@ -1822,7 +1884,7 @@ function AttendanceTab({ employees }) {
                       <div className="flex items-center">
                         <div className={`h-3 w-3 rounded-full mr-3 ${
                           attendance.status === 'present' ? 'bg-green-500' : 
-                          attendance.status === 'checked_out' ? 'bg-blue-500' : 'bg-red-500'
+                          attendance.status === 'partial' ? 'bg-yellow-500' : 'bg-red-500'
                         }`} />
                         <div>
                           <div className="text-sm font-medium text-gray-900">{employee.name}</div>
@@ -1833,7 +1895,7 @@ function AttendanceTab({ employees }) {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 py-1 text-xs rounded-full font-medium ${
                         attendance.status === 'present' ? 'bg-green-100 text-green-800 border border-green-200' :
-                        attendance.status === 'checked_out' ? 'bg-blue-100 text-blue-800 border border-blue-200' :
+                        attendance.status === 'partial' ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' :
                         'bg-red-100 text-red-800 border border-red-200'
                       }`}>
                         {getStatusDisplay(attendance.status).text}
@@ -1848,16 +1910,16 @@ function AttendanceTab({ employees }) {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {attendance.shift}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {attendance.lastVitalTime ? (
-                        <div className="text-xs">
-                          <div>{attendance.lastVitalTime.toLocaleTimeString()}</div>
-                          <div className="text-gray-400">
-                            {Math.round((Date.now() - attendance.lastVitalTime.getTime()) / 60000)}m ago
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {attendance.totalHours ? (
+                        <div className="text-sm">
+                          <div className="font-medium">{attendance.totalHours.toFixed(1)}h</div>
+                          <div className="text-xs text-gray-500">
+                            {attendance.totalHours > 8 ? `+${(attendance.totalHours - 8).toFixed(1)}h OT` : 'Regular'}
                           </div>
                         </div>
                       ) : (
-                        <span className="text-gray-400">No data</span>
+                        <span className="text-gray-400">--</span>
                       )}
                     </td>
                   </tr>
