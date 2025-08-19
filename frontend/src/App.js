@@ -384,8 +384,15 @@ function EmployeeDashboard() {
     const socketManager = new AlertSocketManager();
     socketManager.connect(localStorage.getItem('token'));
     
+    // Subscribe to own vitals updates
+    socketManager.on('connect', () => {
+      console.log('Employee WebSocket connected, subscribing to vitals...');
+      socketManager.emit('subscribe_vitals', { userId: user.id });
+    });
+    
     socketManager.on('vital_update', (data) => {
       if (data.userId === user.id) {
+        console.log('Received vital update:', data.vital);
         // Add new vital to the vitals array
         setVitals(prev => [data.vital, ...prev.slice(0, 19)]); // Keep last 20
       }
