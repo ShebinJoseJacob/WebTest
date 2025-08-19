@@ -1669,7 +1669,7 @@ function AttendanceTab({ employees }) {
       setError(null);
       
       try {
-        const response = await apiService.request(`/attendance/date/${selectedDate}`);
+        const response = await api.request(`/attendance/date/${selectedDate}`);
         
         // Transform API response to match the expected format
         const attendanceMap = {};
