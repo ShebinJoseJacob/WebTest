@@ -744,25 +744,29 @@ function SupervisorDashboard() {
     };
   }, []);
 
+  // Manual Reset Function (can be called immediately)
+  const resetEmployeeData = useCallback(() => {
+    console.log('🔄 Manual reset: Clearing all employee UI data');
+    setEmployees(prev => prev.map(emp => ({
+      ...emp,
+      latestVital: null,
+      status: 'offline',
+      lastSeen: null,
+      vitals: [],
+      alerts: []
+    })));
+    
+    // Clear alerts
+    setAlerts([]);
+    
+    // Store reset timestamp
+    localStorage.setItem('lastUIReset', new Date().toISOString());
+    
+    console.log('✅ All frontend data cleared');
+  }, []);
+
   // Daily Reset Functionality
   useEffect(() => {
-    const resetEmployeeData = () => {
-      console.log('🔄 Daily reset: Clearing employee UI data');
-      setEmployees(prev => prev.map(emp => ({
-        ...emp,
-        latestVital: null,
-        status: 'offline',
-        lastSeen: null,
-        vitals: [],
-        alerts: []
-      })));
-      
-      // Clear alerts
-      setAlerts([]);
-      
-      // Store reset timestamp
-      localStorage.setItem('lastUIReset', new Date().toISOString());
-    };
 
     const setupDailyReset = () => {
       const now = new Date();
@@ -1896,15 +1900,6 @@ function AttendanceTab({ employees }) {
         </div>
       )}
 
-      {/* Loading State */}
-      {loading && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <div className="flex items-center">
-            <RefreshCw className="h-5 w-5 text-blue-500 mr-2 animate-spin" />
-            <p className="text-blue-700">Loading attendance data...</p>
-          </div>
-        </div>
-      )}
 
       {/* Attendance Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
