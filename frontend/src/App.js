@@ -245,19 +245,19 @@ function AuthProvider({ children }) {
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
-      // For demo, decode the token to get user info
-      try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        setUser({
-          id: payload.id,
-          email: payload.email,
-          role: payload.role,
-          name: payload.role === 'supervisor' ? 'John Supervisor' : 'Jane Employee'
-        });
-      } catch (e) {
-        api.clearToken();
-      }
-      setLoading(false);
+      // Fetch real user data from backend
+      const fetchUserData = async () => {
+        try {
+          const userData = await api.request('/auth/me');
+          setUser(userData.user);
+        } catch (e) {
+          console.error('Failed to fetch user data:', e);
+          api.clearToken();
+        }
+        setLoading(false);
+      };
+      
+      fetchUserData();
     } else {
       setLoading(false);
     }
