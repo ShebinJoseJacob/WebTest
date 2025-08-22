@@ -1,0 +1,10 @@
+{
+  "name": "iot-proxy",
+  "version": "1.0.0",
+  "description": "HTTP to HTTPS proxy for IoT devices",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vercel dev"
+  },
+  "dependencies": {}
+}
