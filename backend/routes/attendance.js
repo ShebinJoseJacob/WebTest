@@ -2,7 +2,7 @@ const express = require('express');
 const Joi = require('joi');
 const Attendance = require('../models/Attendance');
 const User = require('../models/User');
-const roleAuth = require('../middleware/roleAuth');
+const { roleAuth } = require('../middleware/roleAuth');
 const moment = require('moment');
 
 const router = express.Router();
