@@ -302,7 +302,7 @@ const EmployeeDashboard = () => {
   return (
     <>
       <Helmet>
-        <title>My Dashboard - IoT Monitoring</title>
+        <title>My Dashboard - Ozon3</title>
         <meta name="description" content="Personal health and safety monitoring dashboard" />
       </Helmet>
 

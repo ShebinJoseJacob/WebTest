@@ -309,7 +309,7 @@ function Login() {
           <Shield className="h-12 w-12 text-blue-300" />
         </div>
         <h2 className="text-2xl font-bold text-white text-center mb-6">
-          IoT Worker Monitoring
+          Ozon3
         </h2>
         <div className="space-y-4">
           <div>

@@ -236,7 +236,7 @@ const SupervisorDashboard = () => {
   return (
     <>
       <Helmet>
-        <title>Supervisor Dashboard - IoT Monitoring</title>
+        <title>Supervisor Dashboard - Ozon3</title>
         <meta name="description" content="Real-time supervisor dashboard for worker monitoring" />
       </Helmet>
 

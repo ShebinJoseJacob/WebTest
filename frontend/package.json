@@ -1,7 +1,7 @@
 {
   "name": "iot-worker-monitoring-frontend",
   "version": "1.0.0",
-  "description": "Frontend for IoT Worker Monitoring Platform",
+  "description": "Frontend for Ozon3 Worker Monitoring Platform",
   "private": true,
   "dependencies": {
     "@headlessui/react": "^1.7.17",
