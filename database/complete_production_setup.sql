@@ -306,11 +306,11 @@ ORDER BY v.device_id, v.timestamp DESC;
 INSERT INTO users (name, email, password_hash, role, department, phone, emergency_contact_name, emergency_contact_phone) VALUES 
 -- Supervisors
 ('System Admin', 'admin@company.com', '$2a$12$PHg0e3GI8N79A5472Qzu2OMjqreRZicvuejee84VUQ0mgqYHrJSFO', 'supervisor', 'Management', '+1-555-0001', 'Emergency Line', '+1-911-0000'),
-('Operations Supervisor', 'supervisor@company.com', '$2a$12$PHg0e3GI8N79A5472Qzu2OMjqreRZicvuejee84VUQ0mgqYHrJSFO', 'supervisor', 'Operations', '+1-555-0002', 'Sarah Johnson', '+1-555-0102'),
+('Shebin Jose Jacob', 'supervisor@company.com', '$2a$12$PHg0e3GI8N79A5472Qzu2OMjqreRZicvuejee84VUQ0mgqYHrJSFO', 'supervisor', 'Operations', '+1-555-0002', 'Sarah Johnson', '+1-555-0102'),
 ('Safety Manager', 'safety@company.com', '$2a$12$PHg0e3GI8N79A5472Qzu2OMjqreRZicvuejee84VUQ0mgqYHrJSFO', 'supervisor', 'Safety', '+1-555-0003', 'Mike Davis', '+1-555-0103'),
 
 -- Employees (Starting from ID 4)
-('Alice Johnson', 'alice.johnson@company.com', '$2a$12$PHg0e3GI8N79A5472Qzu2OMjqreRZicvuejee84VUQ0mgqYHrJSFO', 'employee', 'Manufacturing', '+1-555-1001', 'Bob Johnson', '+1-555-2001'),
+('Nekhil Ravi', 'nekhil.ravi@company.com', '$2a$12$PHg0e3GI8N79A5472Qzu2OMjqreRZicvuejee84VUQ0mgqYHrJSFO', 'employee', 'Manufacturing', '+1-555-1001', 'Bob Johnson', '+1-555-2001'),
 ('Bob Smith', 'bob.smith@company.com', '$2a$12$PHg0e3GI8N79A5472Qzu2OMjqreRZicvuejee84VUQ0mgqYHrJSFO', 'employee', 'Manufacturing', '+1-555-1002', 'Alice Smith', '+1-555-2002'),
 ('Carol Davis', 'carol.davis@company.com', '$2a$12$PHg0e3GI8N79A5472Qzu2OMjqreRZicvuejee84VUQ0mgqYHrJSFO', 'employee', 'Quality Control', '+1-555-1003', 'John Davis', '+1-555-2003'),
 ('David Wilson', 'david.wilson@company.com', '$2a$12$PHg0e3GI8N79A5472Qzu2OMjqreRZicvuejee84VUQ0mgqYHrJSFO', 'employee', 'Warehouse', '+1-555-1004', 'Emma Wilson', '+1-555-2004'),
@@ -337,6 +337,178 @@ INSERT INTO devices (user_id, device_serial, device_model, firmware_version, bat
 (13, 'IOT-DEVICE-010', 'HealthMonitor Pro v2.1', '2.1.3', 90),
 (14, 'IOT-DEVICE-011', 'HealthMonitor Pro v2.1', '2.1.3', 85),
 (15, 'IOT-DEVICE-012', 'HealthMonitor Pro v2.1', '2.1.3', 88);
+
+-- =====================================================
+-- COMPLIANCE MODULE ADDITION
+-- =====================================================
+
+-- Create ENUM types for compliance
+CREATE TYPE compliance_type AS ENUM ('safety', 'environmental', 'health', 'equipment', 'training', 'documentation');
+CREATE TYPE compliance_status AS ENUM ('compliant', 'non_compliant', 'pending_review', 'in_remediation', 'resolved');
+CREATE TYPE risk_level AS ENUM ('low', 'medium', 'high', 'critical');
+
+-- Create compliance_records table
+CREATE TABLE compliance_records (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    device_id INTEGER REFERENCES devices(id) ON DELETE CASCADE,
+    type compliance_type NOT NULL,
+    status compliance_status NOT NULL DEFAULT 'pending_review',
+    title VARCHAR(255) NOT NULL,
+    description TEXT NOT NULL,
+    regulation_standard VARCHAR(100), -- e.g., 'OSHA 1910.95', 'ISO 45001', 'EPA Clean Air Act'
+    threshold_value DECIMAL(10,2), -- The compliance threshold/limit
+    measured_value DECIMAL(10,2), -- The actual measured value
+    deviation_percentage DECIMAL(5,2), -- Calculated percentage deviation from threshold
+    risk_level risk_level NOT NULL DEFAULT 'medium',
+    location_lat DECIMAL(10,8), -- Location where compliance issue was detected
+    location_lng DECIMAL(11,8),
+    corrective_action TEXT, -- Description of corrective action taken/required
+    remediation_deadline TIMESTAMP, -- Deadline for remediation
+    assigned_to INTEGER REFERENCES users(id), -- User assigned to handle this compliance issue
+    reviewed BOOLEAN DEFAULT false,
+    reviewed_by INTEGER REFERENCES users(id),
+    reviewed_at TIMESTAMP,
+    approved BOOLEAN DEFAULT false,
+    approved_by INTEGER REFERENCES users(id),
+    approved_at TIMESTAMP,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    -- Constraints
+    CONSTRAINT compliance_review_consistency CHECK (
+        (reviewed = false) OR 
+        (reviewed = true AND reviewed_by IS NOT NULL AND reviewed_at IS NOT NULL)
+    ),
+    CONSTRAINT compliance_approval_consistency CHECK (
+        (approved = false) OR 
+        (approved = true AND approved_by IS NOT NULL AND approved_at IS NOT NULL)
+    ),
+    CONSTRAINT compliance_timestamp_check CHECK (timestamp <= CURRENT_TIMESTAMP + INTERVAL '1 hour')
+);
+
+-- Create indexes for compliance performance
+CREATE INDEX idx_compliance_user_id ON compliance_records(user_id);
+CREATE INDEX idx_compliance_device_id ON compliance_records(device_id);
+CREATE INDEX idx_compliance_timestamp ON compliance_records(timestamp DESC);
+CREATE INDEX idx_compliance_status ON compliance_records(status);
+CREATE INDEX idx_compliance_type ON compliance_records(type);
+CREATE INDEX idx_compliance_risk_level ON compliance_records(risk_level);
+CREATE INDEX idx_compliance_reviewed ON compliance_records(reviewed, timestamp DESC);
+CREATE INDEX idx_compliance_approved ON compliance_records(approved, timestamp DESC);
+CREATE INDEX idx_compliance_assigned_to ON compliance_records(assigned_to);
+CREATE INDEX idx_compliance_high_risk ON compliance_records(risk_level, timestamp DESC) WHERE risk_level IN ('high', 'critical');
+CREATE INDEX idx_compliance_unreviewed ON compliance_records(reviewed, timestamp DESC) WHERE reviewed = false;
+
+-- Create trigger for compliance updated_at
+CREATE TRIGGER update_compliance_updated_at 
+    BEFORE UPDATE ON compliance_records 
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Create view for compliance summary
+CREATE VIEW compliance_summary AS
+SELECT 
+    c.id,
+    c.user_id,
+    c.device_id,
+    c.type,
+    c.status,
+    c.title,
+    c.description,
+    c.regulation_standard,
+    c.threshold_value,
+    c.measured_value,
+    c.deviation_percentage,
+    c.risk_level,
+    c.location_lat,
+    c.location_lng,
+    c.corrective_action,
+    c.remediation_deadline,
+    c.reviewed,
+    c.approved,
+    c.timestamp,
+    c.created_at,
+    c.updated_at,
+    u.name as user_name,
+    u.department,
+    u.role,
+    d.device_serial,
+    d.device_model,
+    assigned_user.name as assigned_to_name,
+    reviewer.name as reviewed_by_name,
+    approver.name as approved_by_name,
+    CASE 
+        WHEN c.remediation_deadline IS NOT NULL AND c.remediation_deadline < CURRENT_TIMESTAMP AND c.status != 'resolved' THEN true
+        ELSE false
+    END as is_overdue
+FROM compliance_records c
+LEFT JOIN users u ON c.user_id = u.id
+LEFT JOIN devices d ON c.device_id = d.id
+LEFT JOIN users assigned_user ON c.assigned_to = assigned_user.id
+LEFT JOIN users reviewer ON c.reviewed_by = reviewer.id
+LEFT JOIN users approver ON c.approved_by = approver.id;
+
+-- Insert sample compliance data
+INSERT INTO compliance_records (
+    user_id, device_id, type, status, title, description, 
+    regulation_standard, threshold_value, measured_value, risk_level,
+    corrective_action, assigned_to
+) VALUES 
+-- Environmental compliance issues
+(4, 1, 'environmental', 'non_compliant', 'CO Level Exceeded', 'Carbon monoxide levels detected above OSHA permissible exposure limit during maintenance work in confined space.', 'OSHA 1910.146', 35.0, 52.0, 'high', 'Immediate area evacuation and ventilation system inspection required', 2),
+
+(5, 2, 'environmental', 'pending_review', 'H2S Detection Alert', 'Hydrogen sulfide detected near processing unit. Requires immediate assessment.', 'OSHA 1910.1000', 20.0, 18.5, 'medium', NULL, 2),
+
+-- Safety compliance
+(6, 3, 'safety', 'non_compliant', 'Fall Protection Violation', 'Worker detected working at height without proper fall protection equipment.', 'OSHA 1926.501', 6.0, 12.0, 'critical', 'Mandatory safety retraining and disciplinary action', 3),
+
+(7, 4, 'health', 'compliant', 'Heart Rate Monitoring', 'Employee heart rate within acceptable range during high-stress work period.', 'Company Policy HR-001', 180.0, 165.0, 'low', NULL, NULL),
+
+-- Equipment compliance
+(8, 5, 'equipment', 'in_remediation', 'Device Battery Low', 'IoT monitoring device showing critically low battery affecting data transmission reliability.', 'Company Standard EQ-005', 20.0, 12.0, 'medium', 'Schedule immediate battery replacement', 2),
+
+-- Training compliance  
+(9, 6, 'training', 'non_compliant', 'Safety Training Expired', 'Employee safety certification expired. Not authorized for hazardous area work.', 'Company Policy TR-101', NULL, NULL, 'high', 'Enroll in next available safety training session', 3),
+
+-- Documentation compliance
+(10, 7, 'documentation', 'resolved', 'Incident Report Filed', 'Minor injury incident properly documented and reported within required timeframe.', 'OSHA 1904.7', 24.0, 2.0, 'low', 'Incident report submitted to safety committee', 3),
+
+-- More environmental samples
+(11, 8, 'environmental', 'non_compliant', 'Methane Level Warning', 'CH4 levels approaching lower explosive limit in storage area.', 'EPA 40 CFR 60', 25.0, 32.0, 'critical', 'Immediate gas leak investigation and repair', 2),
+
+(12, 9, 'safety', 'pending_review', 'Extended Work Hours', 'Employee worked beyond maximum allowed consecutive hours without mandatory rest period.', 'DOT 49 CFR 395', 14.0, 16.5, 'medium', NULL, 3),
+
+(13, 10, 'health', 'compliant', 'Temperature Monitoring', 'Body temperature readings normal throughout shift in high-temperature environment.', 'NIOSH Criteria Document', 38.5, 37.2, 'low', NULL, NULL);
+
+-- Update some compliance records to show workflow progression
+UPDATE compliance_records SET 
+    reviewed = true, 
+    reviewed_by = 2, 
+    reviewed_at = CURRENT_TIMESTAMP - INTERVAL '2 days',
+    approved = true,
+    approved_by = 1,
+    approved_at = CURRENT_TIMESTAMP - INTERVAL '1 day'
+WHERE id IN (4, 7, 10);
+
+UPDATE compliance_records SET 
+    reviewed = true, 
+    reviewed_by = 3, 
+    reviewed_at = CURRENT_TIMESTAMP - INTERVAL '1 day'
+WHERE id IN (2, 5, 9);
+
+-- Add remediation deadlines for critical and high-risk items
+UPDATE compliance_records SET 
+    remediation_deadline = CURRENT_TIMESTAMP + INTERVAL '24 hours'
+WHERE risk_level = 'critical';
+
+UPDATE compliance_records SET 
+    remediation_deadline = CURRENT_TIMESTAMP + INTERVAL '7 days'
+WHERE risk_level = 'high';
+
+UPDATE compliance_records SET 
+    remediation_deadline = CURRENT_TIMESTAMP + INTERVAL '30 days'
+WHERE risk_level = 'medium' AND status = 'non_compliant';
 
 COMMIT;
 

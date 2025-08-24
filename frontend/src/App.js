@@ -8,7 +8,7 @@ import {
   Zap, UserCheck, AlertCircle
 } from 'lucide-react';
 import { 
-  MapTab, AlertsTab, StatCard, FilterPanel, EmployeeCard, CriticalAlertItem 
+  MapTab, AlertsTab, ComplianceTab, StatCard, FilterPanel, EmployeeCard, CriticalAlertItem 
 } from './components/SupervisorComponents';
 
 // API Configuration
@@ -1079,7 +1079,8 @@ function SupervisorDashboard() {
               { id: 'overview', label: 'Employees', icon: Users },
               { id: 'map', label: 'Live Map', icon: MapIcon },
               { id: 'attendance', label: 'Attendance', icon: Calendar },
-              { id: 'alerts', label: 'Alerts', icon: Bell, badge: alerts.filter(a => !a.acknowledged).length }
+              { id: 'alerts', label: 'Alerts', icon: Bell, badge: alerts.filter(a => !a.acknowledged).length },
+              { id: 'compliance', label: 'Compliance', icon: Shield }
             ].map(tab => (
               <button
                 key={tab.id}
@@ -1145,6 +1146,11 @@ function SupervisorDashboard() {
             {/* Alerts Tab */}
             {activeTab === 'alerts' && (
               <AlertsTab alerts={alerts} onAcknowledgeAlert={handleAcknowledgeAlert} />
+            )}
+            
+            {/* Compliance Tab */}
+            {activeTab === 'compliance' && (
+              <ComplianceTab />
             )}
           </>
         )}

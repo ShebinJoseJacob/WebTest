@@ -14,6 +14,7 @@ const vitalsRoutes = require('./routes/vitals');
 const alertsRoutes = require('./routes/alerts');
 const locationRoutes = require('./routes/location');
 const attendanceRoutes = require('./routes/attendance');
+const complianceRoutes = require('./routes/compliance');
 
 const authMiddleware = require('./middleware/auth');
 const errorHandler = require('./middleware/errorHandler');
@@ -105,6 +106,7 @@ app.use('/api/vitals', authMiddleware, vitalsRoutes);
 app.use('/api/alerts', authMiddleware, alertsRoutes);
 app.use('/api/location', authMiddleware, locationRoutes);
 app.use('/api/attendance', authMiddleware, attendanceRoutes);
+app.use('/api/compliance', authMiddleware, complianceRoutes);
 
 // Socket.io is now initialized and configured in socket.js
 

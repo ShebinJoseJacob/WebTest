@@ -4,7 +4,7 @@ import {
   Users, Bell, Calendar, Shield, LogOut, CheckCircle, 
   Clock, Home, Map as MapIcon, Volume2, VolumeX,
   RefreshCw, Filter, Eye, EyeOff, Smartphone, Monitor,
-  Zap, UserCheck, AlertCircle
+  Zap, UserCheck, AlertCircle, FileCheck
 } from 'lucide-react';
 
 // VitalValue Component with hover tooltip
@@ -606,6 +606,360 @@ export function CriticalAlertItem({ alert, onAcknowledge }) {
         >
           Acknowledge
         </button>
+      </div>
+    </div>
+  );
+}
+
+// Compliance Tab Component
+export function ComplianceTab() {
+  const [complianceData, setComplianceData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [stats, setStats] = useState({
+    total_records: 0,
+    compliant_count: 0,
+    non_compliant_count: 0,
+    pending_review_count: 0,
+    critical_risk_count: 0,
+    high_risk_count: 0,
+    unreviewed_count: 0,
+    compliance_rate: 0
+  });
+  const [filter, setFilter] = useState('all');
+
+  // Fetch compliance data
+  const fetchComplianceData = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) throw new Error('No authentication token');
+
+      // Build query parameters
+      const queryParams = new URLSearchParams();
+      if (filter !== 'all') {
+        if (filter === 'high_risk') {
+          queryParams.set('risk_level', 'high');
+        } else if (filter === 'critical_risk') {
+          queryParams.set('risk_level', 'critical');
+        } else if (filter === 'unreviewed') {
+          queryParams.set('reviewed', 'false');
+        } else {
+          queryParams.set('status', filter);
+        }
+      }
+      queryParams.set('limit', '50');
+
+      const [dataResponse, statsResponse] = await Promise.all([
+        fetch(`/api/compliance?${queryParams}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+        fetch('/api/compliance/stats', {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+      ]);
+
+      if (!dataResponse.ok || !statsResponse.ok) {
+        throw new Error('Failed to fetch compliance data');
+      }
+
+      const dataResult = await dataResponse.json();
+      const statsResult = await statsResponse.json();
+
+      setComplianceData(dataResult.compliance || []);
+      setStats(statsResult.stats || stats);
+
+    } catch (err) {
+      console.error('Error fetching compliance data:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Initial load
+  useEffect(() => {
+    fetchComplianceData();
+  }, [filter]);
+
+  // Handle compliance record review
+  const handleReview = async (id, approved = false) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/compliance/${id}/review`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ approved })
+      });
+
+      if (response.ok) {
+        fetchComplianceData(); // Refresh data
+      }
+    } catch (error) {
+      console.error('Error reviewing compliance record:', error);
+    }
+  };
+
+  // Filter compliance records
+  const filteredRecords = complianceData.filter(record => {
+    if (filter === 'all') return true;
+    if (filter === 'high_risk') return ['high', 'critical'].includes(record.risk_level);
+    if (filter === 'critical_risk') return record.risk_level === 'critical';
+    if (filter === 'unreviewed') return !record.reviewed;
+    if (filter === 'non_compliant') return record.status === 'non_compliant';
+    if (filter === 'pending_review') return record.status === 'pending_review';
+    return true;
+  });
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <Shield className="h-8 w-8 text-blue-600" />
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Compliance Rate</p>
+              <p className="text-2xl font-semibold text-gray-900">{stats.compliance_rate}%</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <AlertTriangle className="h-8 w-8 text-red-600" />
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">High Risk</p>
+              <p className="text-2xl font-semibold text-gray-900">
+                {parseInt(stats.critical_risk_count) + parseInt(stats.high_risk_count)}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <Clock className="h-8 w-8 text-yellow-600" />
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Pending Review</p>
+              <p className="text-2xl font-semibold text-gray-900">{stats.unreviewed_count}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <FileCheck className="h-8 w-8 text-green-600" />
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Total Records</p>
+              <p className="text-2xl font-semibold text-gray-900">{stats.total_records}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Compliance Filters */}
+      <div className="bg-white rounded-xl shadow-sm p-6">
+        <div className="flex flex-wrap gap-4">
+          <button
+            onClick={() => setFilter('all')}
+            className={`px-4 py-2 rounded-lg transition-colors ${
+              filter === 'all' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'
+            }`}
+          >
+            All Records ({stats.total_records})
+          </button>
+          <button
+            onClick={() => setFilter('critical_risk')}
+            className={`px-4 py-2 rounded-lg transition-colors ${
+              filter === 'critical_risk' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'
+            }`}
+          >
+            Critical Risk ({stats.critical_risk_count})
+          </button>
+          <button
+            onClick={() => setFilter('high_risk')}
+            className={`px-4 py-2 rounded-lg transition-colors ${
+              filter === 'high_risk' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-600'
+            }`}
+          >
+            High Risk ({parseInt(stats.critical_risk_count) + parseInt(stats.high_risk_count)})
+          </button>
+          <button
+            onClick={() => setFilter('unreviewed')}
+            className={`px-4 py-2 rounded-lg transition-colors ${
+              filter === 'unreviewed' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600'
+            }`}
+          >
+            Need Review ({stats.unreviewed_count})
+          </button>
+          <button
+            onClick={() => setFilter('non_compliant')}
+            className={`px-4 py-2 rounded-lg transition-colors ${
+              filter === 'non_compliant' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'
+            }`}
+          >
+            Non-Compliant ({stats.non_compliant_count})
+          </button>
+        </div>
+      </div>
+
+      {/* Error State */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+          <div className="flex">
+            <AlertTriangle className="h-5 w-5 text-red-400" />
+            <div className="ml-3">
+              <p className="text-sm text-red-800">{error}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Compliance Records */}
+      <div className="space-y-4">
+        {filteredRecords.map(record => (
+          <ComplianceCard key={record.id} record={record} onReview={handleReview} />
+        ))}
+        {filteredRecords.length === 0 && (
+          <div className="bg-white rounded-xl shadow-sm p-12 text-center">
+            <CheckCircle className="h-12 w-12 mx-auto mb-4 text-green-500" />
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">No compliance issues found</h3>
+            <p className="text-gray-500">All systems are meeting compliance standards</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Compliance Card Component
+function ComplianceCard({ record, onReview }) {
+  const getSeverityColor = () => {
+    switch(record.risk_level) {
+      case 'critical': return 'bg-red-50 border-red-500';
+      case 'high': return 'bg-orange-50 border-orange-500';
+      case 'medium': return 'bg-yellow-50 border-yellow-500';
+      default: return 'bg-blue-50 border-blue-500';
+    }
+  };
+
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'compliant':
+        return <CheckCircle className="h-4 w-4 text-green-600" />;
+      case 'non_compliant':
+        return <AlertCircle className="h-4 w-4 text-red-600" />;
+      case 'resolved':
+        return <CheckCircle className="h-4 w-4 text-gray-600" />;
+      default:
+        return <Clock className="h-4 w-4 text-yellow-600" />;
+    }
+  };
+
+  return (
+    <div className={`bg-white rounded-xl shadow-sm border-l-4 p-6 ${getSeverityColor()}`}>
+      <div className="flex items-start justify-between">
+        <div className="flex-1">
+          <div className="flex items-center space-x-4 mb-3">
+            <div className="flex items-center">
+              <Users className="h-4 w-4 text-gray-400 mr-2" />
+              <span className="font-medium text-gray-900">{record.user_name || 'Unknown User'}</span>
+            </div>
+            <div className="flex items-center">
+              {getStatusIcon(record.status)}
+              <span className="ml-1 text-sm capitalize">{record.status.replace('_', ' ')}</span>
+            </div>
+            <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+              record.risk_level === 'critical' ? 'bg-red-100 text-red-800' :
+              record.risk_level === 'high' ? 'bg-orange-100 text-orange-800' :
+              record.risk_level === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+              'bg-green-100 text-green-800'
+            }`}>
+              {record.risk_level.toUpperCase()}
+            </div>
+          </div>
+          
+          <h4 className="font-semibold text-gray-900 mb-2">{record.title}</h4>
+          <p className="text-sm text-gray-600 mb-3">{record.description}</p>
+          
+          <div className="flex items-center space-x-6 text-sm text-gray-500">
+            <div className="flex items-center">
+              <Shield className="h-4 w-4 mr-1" />
+              <span className="capitalize">{record.type}</span>
+            </div>
+            {record.regulation_standard && (
+              <div className="flex items-center">
+                <FileCheck className="h-4 w-4 mr-1" />
+                <span>{record.regulation_standard}</span>
+              </div>
+            )}
+            <div className="flex items-center">
+              <Clock className="h-4 w-4 mr-1" />
+              <span>{new Date(record.timestamp).toLocaleDateString()}</span>
+            </div>
+          </div>
+          
+          {record.corrective_action && (
+            <div className="mt-3 p-3 bg-blue-50 rounded-lg">
+              <p className="text-sm text-blue-800">
+                <strong>Action Required:</strong> {record.corrective_action}
+              </p>
+            </div>
+          )}
+        </div>
+        
+        <div className="flex flex-col space-y-2 ml-6">
+          {!record.reviewed && (
+            <>
+              <button
+                onClick={() => onReview(record.id, true)}
+                className="px-3 py-1 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition-colors"
+                title="Approve"
+              >
+                Approve
+              </button>
+              <button
+                onClick={() => onReview(record.id, false)}
+                className="px-3 py-1 bg-yellow-600 text-white rounded-lg text-sm hover:bg-yellow-700 transition-colors"
+                title="Review Only"
+              >
+                Review
+              </button>
+            </>
+          )}
+          {record.reviewed && (
+            <div className="text-center">
+              <div className="text-xs text-gray-500">
+                {record.approved ? 'Approved' : 'Reviewed'}
+              </div>
+              <div className="text-xs text-gray-400">
+                by {record.reviewed_by_name || 'Unknown'}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
