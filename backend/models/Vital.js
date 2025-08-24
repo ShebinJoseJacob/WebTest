@@ -12,6 +12,10 @@ class Vital {
     this.longitude = parseFloat(vitalData.longitude);
     this.gps_accuracy = parseFloat(vitalData.gps_accuracy);
     this.fall_detected = vitalData.fall_detected;
+    // Environmental parameters
+    this.co = vitalData.co ? parseFloat(vitalData.co) : null;
+    this.h2s = vitalData.h2s ? parseFloat(vitalData.h2s) : null;
+    this.ch4 = vitalData.ch4 ? parseFloat(vitalData.ch4) : null;
     this.timestamp = vitalData.timestamp;
     this.created_at = vitalData.created_at;
   }
@@ -27,14 +31,17 @@ class Vital {
       longitude,
       gps_accuracy,
       fall_detected = false,
+      co,
+      h2s,
+      ch4,
       timestamp = new Date()
     } = vitalData;
 
     const result = await query(
-      `INSERT INTO vitals (device_id, heart_rate, spo2, temperature, latitude, longitude, gps_accuracy, fall_detected, timestamp, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP)
+      `INSERT INTO vitals (device_id, heart_rate, spo2, temperature, latitude, longitude, gps_accuracy, fall_detected, co, h2s, ch4, timestamp, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, CURRENT_TIMESTAMP)
        RETURNING *`,
-      [device_id, heart_rate, spo2, temperature, latitude, longitude, gps_accuracy, fall_detected, timestamp]
+      [device_id, heart_rate, spo2, temperature, latitude, longitude, gps_accuracy, fall_detected, co, h2s, ch4, timestamp]
     );
 
     return new Vital(result.rows[0]);
@@ -299,7 +306,10 @@ class Vital {
       this.heart_rate < 60 || this.heart_rate > 100 ||
       this.spo2 < 95 ||
       this.temperature < 36.0 || this.temperature > 37.5 ||
-      this.fall_detected
+      this.fall_detected ||
+      (this.co && this.co > 35) ||  // OSHA 8-hour TWA threshold
+      (this.h2s && this.h2s > 10) ||  // OSHA STEL threshold
+      (this.ch4 && this.ch4 > 10)   // 10% LEL threshold
     );
   }
 
@@ -313,6 +323,29 @@ class Vital {
     if (this.temperature < 36.0) issues.push({ type: 'temperature', message: 'Low body temperature', value: this.temperature, severity: 'medium' });
     if (this.temperature > 37.5) issues.push({ type: 'temperature', message: 'High body temperature', value: this.temperature, severity: 'medium' });
     if (this.fall_detected) issues.push({ type: 'fall', message: 'Fall detected', severity: 'critical' });
+    
+    // Environmental hazard detection
+    if (this.co && this.co > 35) issues.push({ 
+      type: 'co', 
+      message: 'Dangerous carbon monoxide level', 
+      value: this.co, 
+      unit: 'ppm',
+      severity: this.co > 200 ? 'critical' : 'high' 
+    });
+    if (this.h2s && this.h2s > 10) issues.push({ 
+      type: 'h2s', 
+      message: 'High hydrogen sulfide level', 
+      value: this.h2s, 
+      unit: 'ppm',
+      severity: this.h2s > 50 ? 'critical' : 'high' 
+    });
+    if (this.ch4 && this.ch4 > 10) issues.push({ 
+      type: 'ch4', 
+      message: 'Dangerous methane concentration', 
+      value: this.ch4, 
+      unit: '%LEL',
+      severity: this.ch4 > 25 ? 'critical' : 'high' 
+    });
 
     return issues;
   }

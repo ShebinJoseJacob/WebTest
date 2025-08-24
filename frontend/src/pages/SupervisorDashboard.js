@@ -32,6 +32,8 @@ import LoadingSpinner from '../components/ui/LoadingSpinner';
 import RefreshButton from '../components/ui/RefreshButton';
 import AlertSound from '../components/AlertSound';
 import VitalsChart from '../components/charts/VitalsChart';
+import EnvironmentalChart from '../components/EnvironmentalChart';
+import EnvironmentalCards from '../components/EnvironmentalCards';
 import AttendanceChart from '../components/charts/AttendanceChart';
 import AlertsList from '../components/alerts/AlertsList';
 import LocationMap from '../components/map/LocationMap';
@@ -50,6 +52,12 @@ const SupervisorDashboard = () => {
   // Dashboard data states
   const [dashboardData, setDashboardData] = useState({
     vitals: {
+      data: [],
+      summary: null,
+      isLoading: true,
+      error: null,
+    },
+    environmental: {
       data: [],
       summary: null,
       isLoading: true,
@@ -81,6 +89,7 @@ const SupervisorDashboard = () => {
         setDashboardData(prev => ({
           ...prev,
           vitals: { ...prev.vitals, isLoading: true },
+          environmental: { ...prev.environmental, isLoading: true },
           alerts: { ...prev.alerts, isLoading: true },
           attendance: { ...prev.attendance, isLoading: true },
         }));
@@ -98,10 +107,17 @@ const SupervisorDashboard = () => {
 
       // Update vitals data
       if (vitalsResult.status === 'fulfilled') {
+        const vitalsData = vitalsResult.value.vitals || [];
         setDashboardData(prev => ({
           ...prev,
           vitals: {
-            data: vitalsResult.value.vitals || [],
+            data: vitalsData,
+            summary: summaryResult.status === 'fulfilled' ? summaryResult.value.summary : null,
+            isLoading: false,
+            error: null,
+          },
+          environmental: {
+            data: vitalsData, // Same data source, environmental chart will filter for CO, H2S, CH4
             summary: summaryResult.status === 'fulfilled' ? summaryResult.value.summary : null,
             isLoading: false,
             error: null,
@@ -114,6 +130,11 @@ const SupervisorDashboard = () => {
             ...prev.vitals,
             isLoading: false,
             error: vitalsResult.reason?.message || 'Failed to fetch vitals',
+          },
+          environmental: {
+            ...prev.environmental,
+            isLoading: false,
+            error: vitalsResult.reason?.message || 'Failed to fetch environmental data',
           },
         }));
       }
@@ -386,6 +407,31 @@ const SupervisorDashboard = () => {
               <QuickActions />
             </Card.Content>
           </Card>
+        </div>
+      </div>
+
+      {/* Environmental Monitoring Row */}
+      <div className="mb-8">
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+              <ExclamationTriangleIcon className="h-5 w-5 text-orange-500 mr-2" />
+              Environmental Monitoring
+            </h3>
+            <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+              isConnected 
+                ? 'bg-green-100 text-green-800' 
+                : 'bg-red-100 text-red-800'
+            }`}>
+              {isConnected ? 'Live' : 'Offline'}
+            </div>
+          </div>
+          
+          <EnvironmentalCards 
+            data={dashboardData.environmental.data}
+            isLoading={dashboardData.environmental.isLoading}
+            error={dashboardData.environmental.error}
+          />
         </div>
       </div>
 

@@ -94,6 +94,10 @@ CREATE TABLE vitals (
     movement_intensity INTEGER CHECK (movement_intensity >= 0 AND movement_intensity <= 100),
     ambient_temperature DECIMAL(4,2),
     humidity INTEGER CHECK (humidity >= 0 AND humidity <= 100),
+    -- Environmental gas parameters
+    co DECIMAL(6,2) CHECK (co >= 0 AND co <= 1000), -- Carbon Monoxide in ppm
+    h2s DECIMAL(6,2) CHECK (h2s >= 0 AND h2s <= 100), -- Hydrogen Sulfide in ppm
+    ch4 DECIMAL(6,2) CHECK (ch4 >= 0 AND ch4 <= 100), -- Methane in %LEL
     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     

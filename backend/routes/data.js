@@ -18,6 +18,10 @@ const deviceDataSchema = Joi.object({
   longitude: Joi.number().min(-180).max(180).optional(),
   gps_accuracy: Joi.number().min(0).optional(),
   fall_detected: Joi.boolean().optional(),
+  // Environmental gas parameters
+  co: Joi.number().min(0).max(1000).optional(), // Carbon Monoxide in ppm
+  h2s: Joi.number().min(0).max(100).optional(), // Hydrogen Sulfide in ppm
+  ch4: Joi.number().min(0).max(100).optional(), // Methane in %LEL
   timestamp: Joi.date().iso().optional(),
 });
 
@@ -44,6 +48,9 @@ router.post('/', async (req, res) => {
       longitude, 
       gps_accuracy,
       fall_detected = false,
+      co,
+      h2s,
+      ch4,
       timestamp = new Date()
     } = value;
 
@@ -65,6 +72,9 @@ router.post('/', async (req, res) => {
       longitude,
       gps_accuracy,
       fall_detected,
+      co,
+      h2s,
+      ch4,
       timestamp
     });
 
