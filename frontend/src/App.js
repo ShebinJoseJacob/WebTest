@@ -2162,6 +2162,7 @@ function EmployeeDetailModal({ employee, alerts = [], attendanceData = {}, onClo
             {[
               { id: 'overview', label: 'Overview', icon: Home },
               { id: 'vitals', label: 'Vital Signs', icon: Heart },
+              { id: 'environmental', label: 'Environmental', icon: AlertTriangle },
               { id: 'location', label: 'Live Location', icon: MapPin },
               { id: 'alerts', label: 'Alerts', icon: AlertTriangle }
             ].map(tab => (
@@ -2194,6 +2195,14 @@ function EmployeeDetailModal({ employee, alerts = [], attendanceData = {}, onClo
           
           {activeTab === 'vitals' && (
             <EmployeeVitalsTab 
+              employee={employee}
+              vitals={historicalVitals}
+              currentVital={vital}
+            />
+          )}
+          
+          {activeTab === 'environmental' && (
+            <EmployeeEnvironmentalTab 
               employee={employee}
               vitals={historicalVitals}
               currentVital={vital}
@@ -2370,6 +2379,46 @@ function EmployeeVitalsTab({ employee, vitals, currentVital }) {
           icon={Thermometer}
           normalRange="36.1-37.2"
           currentValue={currentVital?.temperature}
+        />
+      </div>
+    </div>
+  );
+}
+
+// Employee Environmental Tab
+function EmployeeEnvironmentalTab({ employee, vitals, currentVital }) {
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <VitalChart
+          title="Carbon Monoxide (CO)"
+          data={vitals}
+          dataKey="co"
+          unit="ppm"
+          color="#dc2626"
+          icon={AlertTriangle}
+          normalRange="0-35"
+          currentValue={currentVital?.co}
+        />
+        <VitalChart
+          title="Hydrogen Sulfide (H₂S)"
+          data={vitals}
+          dataKey="h2s"
+          unit="ppm"
+          color="#059669"
+          icon={AlertTriangle}
+          normalRange="0-10"
+          currentValue={currentVital?.h2s}
+        />
+        <VitalChart
+          title="Methane (CH₄)"
+          data={vitals}
+          dataKey="ch4"
+          unit="%LEL"
+          color="#ea580c"
+          icon={AlertTriangle}
+          normalRange="0-10"
+          currentValue={currentVital?.ch4}
         />
       </div>
     </div>
