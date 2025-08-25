@@ -40,7 +40,7 @@ DROP FUNCTION IF EXISTS cleanup_old_data() CASCADE;
 -- Create ENUM types for better data integrity
 CREATE TYPE user_role AS ENUM ('employee', 'supervisor');
 CREATE TYPE attendance_status AS ENUM ('present', 'absent', 'partial');
-CREATE TYPE alert_type AS ENUM ('fall', 'heart_rate', 'spo2', 'temperature', 'offline');
+CREATE TYPE alert_type AS ENUM ('fall', 'heart_rate', 'spo2', 'temperature', 'co', 'h2s', 'ch4', 'offline');
 CREATE TYPE alert_severity AS ENUM ('low', 'medium', 'high', 'critical');
 
 -- Compliance system ENUM types
