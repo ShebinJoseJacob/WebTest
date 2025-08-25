@@ -754,34 +754,32 @@ function VitalChart({ title, data, dataKey, unit, color, icon: Icon, normalRange
             </div>
           </div>
         ) : (
-          <svg className="w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
+          <svg className="w-full h-full pointer-events-none">
             {/* Safe threshold line (red dashed) */}
             {normalThresholds.max >= yAxisRange.min && normalThresholds.max <= yAxisRange.max && (
               <line
-                x1="0"
-                y1={100 - ((normalThresholds.max - yAxisRange.min) / yAxisSpan * 100)}
-                x2="100"
-                y2={100 - ((normalThresholds.max - yAxisRange.min) / yAxisSpan * 100)}
+                x1="0%"
+                y1={`${100 - ((normalThresholds.max - yAxisRange.min) / yAxisSpan * 100)}%`}
+                x2="100%"
+                y2={`${100 - ((normalThresholds.max - yAxisRange.min) / yAxisSpan * 100)}%`}
                 stroke="#ef4444"
-                strokeWidth="0.5"
-                strokeDasharray="2,2"
-                opacity="0.8"
-                vectorEffect="non-scaling-stroke"
+                strokeWidth="1"
+                strokeDasharray="4,3"
+                opacity="0.6"
               />
             )}
             
             {/* Lower safe threshold line (green dashed) if different from max */}
             {normalThresholds.min >= yAxisRange.min && normalThresholds.min <= yAxisRange.max && normalThresholds.min !== normalThresholds.max && normalThresholds.min > 0 && (
               <line
-                x1="0"
-                y1={100 - ((normalThresholds.min - yAxisRange.min) / yAxisSpan * 100)}
-                x2="100"
-                y2={100 - ((normalThresholds.min - yAxisRange.min) / yAxisSpan * 100)}
+                x1="0%"
+                y1={`${100 - ((normalThresholds.min - yAxisRange.min) / yAxisSpan * 100)}%`}
+                x2="100%"
+                y2={`${100 - ((normalThresholds.min - yAxisRange.min) / yAxisSpan * 100)}%`}
                 stroke="#10b981"
-                strokeWidth="0.5"
-                strokeDasharray="2,2"
-                opacity="0.8"
-                vectorEffect="non-scaling-stroke"
+                strokeWidth="1"
+                strokeDasharray="4,3"
+                opacity="0.6"
               />
             )}
             
@@ -790,25 +788,49 @@ function VitalChart({ title, data, dataKey, unit, color, icon: Icon, normalRange
               <polyline
                 fill="none"
                 stroke={color}
-                strokeWidth="2"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
                 points={chartData
                   .filter(point => point[dataKey] != null && !isNaN(point[dataKey]))
                   .map((point, i, validData) => {
-                    return `${(i / (validData.length - 1)) * 100},${100 - ((point[dataKey] - yAxisRange.min) / yAxisSpan * 100)}`;
+                    const x = (i / (validData.length - 1)) * 100;
+                    const y = 100 - ((point[dataKey] - yAxisRange.min) / yAxisSpan * 100);
+                    return `${x},${y}`;
                   })
                   .join(' ')}
               />
             )}
             
-            {/* Current value indicator */}
+            {/* Data points */}
+            {chartData.length > 0 && chartData
+              .filter(point => point[dataKey] != null && !isNaN(point[dataKey]))
+              .map((point, i, validData) => {
+                const x = (i / (validData.length - 1)) * 100;
+                const y = 100 - ((point[dataKey] - yAxisRange.min) / yAxisSpan * 100);
+                return (
+                  <circle
+                    key={i}
+                    cx={`${x}%`}
+                    cy={`${y}%`}
+                    r="1.5"
+                    fill={color}
+                    opacity="0.8"
+                  />
+                );
+              })
+            }
+            
+            {/* Current value indicator (larger) */}
             {latestValue && chartData.length > 0 && (
               <circle
-                cx="100"
-                cy={100 - ((latestValue - yAxisRange.min) / yAxisSpan * 100)}
-                r="3"
+                cx="100%"
+                cy={`${100 - ((latestValue - yAxisRange.min) / yAxisSpan * 100)}%`}
+                r="2.5"
                 fill={color}
                 stroke="white"
-                strokeWidth="2"
+                strokeWidth="1.5"
+                opacity="0.9"
               />
             )}
           </svg>
