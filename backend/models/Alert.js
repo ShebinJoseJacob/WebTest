@@ -276,6 +276,9 @@ class Alert {
         COUNT(CASE WHEN type = 'heart_rate' THEN 1 END) as heart_rate_alerts,
         COUNT(CASE WHEN type = 'spo2' THEN 1 END) as spo2_alerts,
         COUNT(CASE WHEN type = 'temperature' THEN 1 END) as temperature_alerts,
+        COUNT(CASE WHEN type = 'co' THEN 1 END) as co_alerts,
+        COUNT(CASE WHEN type = 'h2s' THEN 1 END) as h2s_alerts,
+        COUNT(CASE WHEN type = 'ch4' THEN 1 END) as ch4_alerts,
         COUNT(CASE WHEN type = 'offline' THEN 1 END) as offline_alerts
       FROM alerts
       WHERE timestamp > NOW() - INTERVAL '${timeRange}'
@@ -402,6 +405,49 @@ class Alert {
         message: 'High body temperature detected',
         value: vital.temperature,
         threshold: 37.5,
+        timestamp: vital.timestamp
+      });
+    }
+
+    // Environmental alerts
+    if (vital.co && vital.co > 35) {
+      alerts.push({
+        device_id: vital.device_id,
+        user_id: deviceUserId,
+        type: 'co',
+        severity: vital.co > 200 ? 'critical' : 'high',
+        title: 'Carbon Monoxide Alert',
+        message: `Dangerous CO level: ${vital.co}ppm (Limit: 35ppm)`,
+        value: vital.co,
+        threshold: 35,
+        timestamp: vital.timestamp
+      });
+    }
+
+    if (vital.h2s && vital.h2s > 10) {
+      alerts.push({
+        device_id: vital.device_id,
+        user_id: deviceUserId,
+        type: 'h2s',
+        severity: vital.h2s > 50 ? 'critical' : 'high',
+        title: 'Hydrogen Sulfide Alert',
+        message: `High H2S level: ${vital.h2s}ppm (Limit: 10ppm)`,
+        value: vital.h2s,
+        threshold: 10,
+        timestamp: vital.timestamp
+      });
+    }
+
+    if (vital.ch4 && vital.ch4 > 10) {
+      alerts.push({
+        device_id: vital.device_id,
+        user_id: deviceUserId,
+        type: 'ch4',
+        severity: vital.ch4 > 25 ? 'critical' : 'high',
+        title: 'Methane Alert',
+        message: `Dangerous CH4 level: ${vital.ch4}%LEL (Limit: 10%LEL)`,
+        value: vital.ch4,
+        threshold: 10,
         timestamp: vital.timestamp
       });
     }
