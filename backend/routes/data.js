@@ -108,7 +108,7 @@ router.post('/', async (req, res) => {
     // Emit real-time vital update
     const io = req.app.get('io');
     if (io) {
-      io.broadcastVitalUpdate(vital, device.id);
+      io.broadcastVitalUpdate(vital, device.id); // device.id for user_id mapping
     }
 
     res.status(201).json({

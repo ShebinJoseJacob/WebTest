@@ -2080,7 +2080,8 @@ function AttendanceTab({ employees }) {
 // Employee Detail Modal
 function EmployeeDetailModal({ employee, alerts = [], attendanceData = {}, onClose }) {
   const [activeTab, setActiveTab] = useState('overview');
-  const vital = employee.latestVital;
+  const [currentVital, setCurrentVital] = useState(employee.latestVital);
+  const vital = currentVital;
   const isOnline = vital?.timestamp && new Date() - new Date(vital.timestamp) < 300000;
 
   // Use real historical vitals data
@@ -2107,6 +2108,8 @@ function EmployeeDetailModal({ employee, alerts = [], attendanceData = {}, onClo
       if (data.userId === employee.id) {
         // Add new vital to historical data
         setHistoricalVitals(prev => [...prev, data.vital]);
+        // Update current vital for real-time display
+        setCurrentVital(data.vital);
       }
     });
     
