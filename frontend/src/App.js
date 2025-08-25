@@ -572,11 +572,12 @@ function EmployeeDashboard() {
 }
 
 // Vital Chart Component for Employee Dashboard
-function VitalChart({ title, data, dataKey, unit, color, icon: Icon, normalRange }) {
+function VitalChart({ title, data, dataKey, unit, color, icon: Icon, normalRange, currentValue }) {
   // Use real data only, no fallback mock data
   const chartData = data || [];
   
-  const latestValue = chartData[chartData.length - 1]?.[dataKey];
+  // Use currentValue if provided, otherwise fall back to latest from historical data
+  const latestValue = currentValue !== undefined ? currentValue : (chartData[chartData.length - 1]?.[dataKey]);
   const [showTooltip, setShowTooltip] = useState(false);
   const [tooltipData, setTooltipData] = useState(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
