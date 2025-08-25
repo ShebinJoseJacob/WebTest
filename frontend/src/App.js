@@ -802,18 +802,6 @@ function VitalChart({ title, data, dataKey, unit, color, icon: Icon, normalRange
               />
             )}
             
-            {/* Current value indicator */}
-            {latestValue && chartData.length > 0 && (
-              <circle
-                cx="100%"
-                cy={`${100 - ((latestValue - yAxisRange.min) / yAxisSpan * 100)}%`}
-                r="2.5"
-                fill={color}
-                stroke="white"
-                strokeWidth="1.5"
-                opacity="0.9"
-              />
-            )}
           </svg>
         )}
         
