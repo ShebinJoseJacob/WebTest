@@ -802,26 +802,7 @@ function VitalChart({ title, data, dataKey, unit, color, icon: Icon, normalRange
               />
             )}
             
-            {/* Data points */}
-            {chartData.length > 0 && chartData
-              .filter(point => point[dataKey] != null && !isNaN(point[dataKey]))
-              .map((point, i, validData) => {
-                const x = (i / (validData.length - 1)) * 100;
-                const y = 100 - ((point[dataKey] - yAxisRange.min) / yAxisSpan * 100);
-                return (
-                  <circle
-                    key={i}
-                    cx={`${x}%`}
-                    cy={`${y}%`}
-                    r="1.5"
-                    fill={color}
-                    opacity="0.8"
-                  />
-                );
-              })
-            }
-            
-            {/* Current value indicator (larger) */}
+            {/* Current value indicator */}
             {latestValue && chartData.length > 0 && (
               <circle
                 cx="100%"
