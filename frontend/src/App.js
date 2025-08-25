@@ -622,6 +622,43 @@ function VitalChart({ title, data, dataKey, unit, color, icon: Icon, normalRange
   const [tooltipData, setTooltipData] = useState(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   
+  // Parse normal range to get threshold values
+  const parseNormalRange = (range) => {
+    const match = range.match(/(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)/);
+    if (match) {
+      return { min: parseFloat(match[1]), max: parseFloat(match[2]) };
+    }
+    // For ranges like "0-35", treat as min-max
+    const singleMatch = range.match(/(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)/);
+    if (singleMatch) {
+      return { min: parseFloat(singleMatch[1]), max: parseFloat(singleMatch[2]) };
+    }
+    return { min: 0, max: 100 };
+  };
+  
+  const normalThresholds = parseNormalRange(normalRange);
+  
+  // Calculate dynamic Y-axis range that includes both data and normal range
+  const calculateYAxisRange = (data) => {
+    const validData = data.filter(point => point[dataKey] != null && !isNaN(point[dataKey]));
+    
+    if (validData.length === 0) {
+      return { min: normalThresholds.min, max: normalThresholds.max };
+    }
+    
+    const dataMin = Math.min(...validData.map(d => d[dataKey]));
+    const dataMax = Math.max(...validData.map(d => d[dataKey]));
+    
+    // Expand range to include normal thresholds and add padding
+    const rangeMin = Math.min(dataMin, normalThresholds.min) * 0.9;
+    const rangeMax = Math.max(dataMax, normalThresholds.max) * 1.1;
+    
+    return { min: rangeMin, max: rangeMax };
+  };
+  
+  const yAxisRange = calculateYAxisRange(chartData);
+  const yAxisSpan = yAxisRange.max - yAxisRange.min || 1;
+  
   // Handle mouse move over chart to get hover point data
   const handleChartMouseMove = (e) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -633,18 +670,13 @@ function VitalChart({ title, data, dataKey, unit, color, icon: Icon, normalRange
     
     if (validData.length === 0) return;
     
-    // Find the closest data point to the mouse position
-    const minValue = Math.min(...validData.map(d => d[dataKey]));
-    const maxValue = Math.max(...validData.map(d => d[dataKey]));
-    const valueRange = maxValue - minValue || 1; // Avoid division by zero
-    
     let closestIndex = 0;
     let closestDistance = Infinity;
     
     validData.forEach((point, index) => {
-      // Calculate the exact screen position using the same formula as the SVG polyline
+      // Calculate the exact screen position using the dynamic Y-axis range
       const svgX = (index / (validData.length - 1)) * 100; // SVG percentage (0-100)
-      const svgY = 100 - ((point[dataKey] - minValue) / valueRange * 100); // SVG percentage (0-100, flipped)
+      const svgY = 100 - ((point[dataKey] - yAxisRange.min) / yAxisSpan * 100); // SVG percentage (0-100, flipped)
       
       // Convert SVG percentages to actual pixel coordinates
       const pointX = (svgX / 100) * rect.width;
@@ -708,6 +740,35 @@ function VitalChart({ title, data, dataKey, unit, color, icon: Icon, normalRange
           </div>
         ) : (
           <svg className="w-full h-full pointer-events-none">
+            {/* Normal range threshold lines */}
+            {normalThresholds.max > yAxisRange.min && normalThresholds.max < yAxisRange.max && (
+              <line
+                x1="0"
+                y1={100 - ((normalThresholds.max - yAxisRange.min) / yAxisSpan * 100)}
+                x2="100"
+                y2={100 - ((normalThresholds.max - yAxisRange.min) / yAxisSpan * 100)}
+                stroke="#ef4444"
+                strokeWidth="1"
+                strokeDasharray="3,3"
+                opacity="0.6"
+                vectorEffect="non-scaling-stroke"
+              />
+            )}
+            {normalThresholds.min > yAxisRange.min && normalThresholds.min < yAxisRange.max && normalThresholds.min !== normalThresholds.max && (
+              <line
+                x1="0"
+                y1={100 - ((normalThresholds.min - yAxisRange.min) / yAxisSpan * 100)}
+                x2="100"
+                y2={100 - ((normalThresholds.min - yAxisRange.min) / yAxisSpan * 100)}
+                stroke="#10b981"
+                strokeWidth="1"
+                strokeDasharray="3,3"
+                opacity="0.6"
+                vectorEffect="non-scaling-stroke"
+              />
+            )}
+            
+            {/* Data line */}
             {chartData.length > 1 && (
               <polyline
                 fill="none"
@@ -716,12 +777,21 @@ function VitalChart({ title, data, dataKey, unit, color, icon: Icon, normalRange
                 points={chartData
                   .filter(point => point[dataKey] != null && !isNaN(point[dataKey]))
                   .map((point, i, validData) => {
-                    const minValue = Math.min(...validData.map(d => d[dataKey]));
-                    const maxValue = Math.max(...validData.map(d => d[dataKey]));
-                    const range = maxValue - minValue || 1; // Avoid division by zero
-                    return `${(i / (validData.length - 1)) * 100},${100 - ((point[dataKey] - minValue) / range) * 100}`;
+                    return `${(i / (validData.length - 1)) * 100},${100 - ((point[dataKey] - yAxisRange.min) / yAxisSpan * 100)}`;
                   })
                   .join(' ')}
+              />
+            )}
+            
+            {/* Current value indicator */}
+            {latestValue && chartData.length > 0 && (
+              <circle
+                cx="100"
+                cy={100 - ((latestValue - yAxisRange.min) / yAxisSpan * 100)}
+                r="3"
+                fill={color}
+                stroke="white"
+                strokeWidth="2"
               />
             )}
           </svg>
@@ -753,8 +823,15 @@ function VitalChart({ title, data, dataKey, unit, color, icon: Icon, normalRange
         )}
       </div>
       
-      <div className="text-xs text-gray-500">
-        Normal: {normalRange} {unit}
+      <div className="flex justify-between text-xs text-gray-500">
+        <span>Range: {yAxisRange.min.toFixed(1)} - {yAxisRange.max.toFixed(1)} {unit}</span>
+        <span className="flex items-center">
+          Safe: {normalRange} {unit}
+          <span className="ml-2 flex items-center space-x-1">
+            <span className="w-3 h-px bg-green-500 opacity-60" style={{borderTop: '1px dashed #10b981'}}></span>
+            <span className="w-3 h-px bg-red-500 opacity-60" style={{borderTop: '1px dashed #ef4444'}}></span>
+          </span>
+        </span>
       </div>
     </div>
   );
