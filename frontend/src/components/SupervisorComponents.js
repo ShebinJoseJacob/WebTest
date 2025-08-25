@@ -652,11 +652,13 @@ export function ComplianceTab() {
       }
       queryParams.set('limit', '50');
 
+      const API_BASE = process.env.REACT_APP_API_URL || 'https://iot-monitoring-backend-sgba.onrender.com/api';
+
       const [dataResponse, statsResponse] = await Promise.all([
-        fetch(`/api/compliance?${queryParams}`, {
+        fetch(`${API_BASE}/compliance?${queryParams}`, {
           headers: { Authorization: `Bearer ${token}` }
         }),
-        fetch('/api/compliance/stats', {
+        fetch(`${API_BASE}/compliance/stats`, {
           headers: { Authorization: `Bearer ${token}` }
         })
       ]);
@@ -688,7 +690,8 @@ export function ComplianceTab() {
   const handleReview = async (id, approved = false) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/compliance/${id}/review`, {
+      const API_BASE = process.env.REACT_APP_API_URL || 'https://iot-monitoring-backend-sgba.onrender.com/api';
+      const response = await fetch(`${API_BASE}/compliance/${id}/review`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
