@@ -1667,8 +1667,8 @@ function ModernEmployeeCard({ employee, alerts = [], onClick }) {
           <p className="text-sm text-gray-600 truncate">{employee.department} • {employee.position}</p>
           <p className="text-xs text-gray-500">{employee.employeeId} • {employee.shift} Shift</p>
         </div>
-        <div className="flex items-start space-x-2 ml-3">
-          <div className={`px-2 py-1 text-xs rounded-full font-medium mt-0 ${
+        <div className="flex items-center space-x-2 ml-3">
+          <div className={`px-2 py-1 text-xs rounded-full font-medium ${
             employee.status === 'critical' ? 'bg-red-100 text-red-800 border border-red-300' :
             employee.status === 'warning' ? 'bg-orange-100 text-orange-800 border border-orange-300' :
             employee.status === 'offline' ? 'bg-red-100 text-red-800 border border-red-300' :
@@ -1677,7 +1677,7 @@ function ModernEmployeeCard({ employee, alerts = [], onClick }) {
           }`}>
             {employee.status.toUpperCase()}
           </div>
-          <div className={`h-3 w-3 rounded-full border-2 border-white shadow-sm mt-1 ${
+          <div className={`h-3 w-3 rounded-full border-2 border-white shadow-sm ${
             isOnline ? 'bg-green-500 animate-pulse' : 'bg-gray-400'
           }`} />
         </div>
