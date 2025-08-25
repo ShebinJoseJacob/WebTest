@@ -13,9 +13,9 @@ class Vital {
     this.gps_accuracy = parseFloat(vitalData.gps_accuracy);
     this.fall_detected = vitalData.fall_detected;
     // Environmental parameters
-    this.co = vitalData.co ? parseFloat(vitalData.co) : null;
-    this.h2s = vitalData.h2s ? parseFloat(vitalData.h2s) : null;
-    this.ch4 = vitalData.ch4 ? parseFloat(vitalData.ch4) : null;
+    this.co = vitalData.co !== null && vitalData.co !== undefined ? parseFloat(vitalData.co) : null;
+    this.h2s = vitalData.h2s !== null && vitalData.h2s !== undefined ? parseFloat(vitalData.h2s) : null;
+    this.ch4 = vitalData.ch4 !== null && vitalData.ch4 !== undefined ? parseFloat(vitalData.ch4) : null;
     this.timestamp = vitalData.timestamp;
     this.created_at = vitalData.created_at;
   }
