@@ -1671,6 +1671,8 @@ function ModernEmployeeCard({ employee, alerts = [], onClick }) {
           <div className={`px-2 py-1 text-xs rounded-full font-medium ${
             employee.status === 'critical' ? 'bg-red-100 text-red-800 border border-red-300' :
             employee.status === 'warning' ? 'bg-orange-100 text-orange-800 border border-orange-300' :
+            employee.status === 'offline' ? 'bg-red-100 text-red-800 border border-red-300' :
+            employee.status === 'away' ? 'bg-yellow-100 text-yellow-800 border border-yellow-300' :
             'bg-green-100 text-green-800 border border-green-300'
           }`}>
             {employee.status.toUpperCase()}
@@ -1801,6 +1803,8 @@ function ModernEmployeeTable({ employees, onEmployeeClick }) {
                   <span className={`px-2 py-1 text-xs rounded-full font-medium ${
                     employee.status === 'critical' ? 'bg-red-100 text-red-800 border border-red-200' :
                     employee.status === 'warning' ? 'bg-orange-100 text-orange-800 border border-orange-200' :
+                    employee.status === 'offline' ? 'bg-red-100 text-red-800 border border-red-200' :
+                    employee.status === 'away' ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' :
                     'bg-green-100 text-green-800 border border-green-200'
                   }`}>
                     {employee.status.toUpperCase()}
@@ -2278,6 +2282,8 @@ function EmployeeDetailModal({ employee, alerts = [], attendanceData = {}, onClo
             <div className={`px-3 py-1 text-sm rounded-full font-medium ${
               employee.status === 'critical' ? 'bg-red-100 text-red-800 border border-red-200' :
               employee.status === 'warning' ? 'bg-orange-100 text-orange-800 border border-orange-200' :
+              employee.status === 'offline' ? 'bg-red-100 text-red-800 border border-red-200' :
+              employee.status === 'away' ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' :
               'bg-green-100 text-green-800 border border-green-200'
             }`}>
               {employee.status.toUpperCase()}
