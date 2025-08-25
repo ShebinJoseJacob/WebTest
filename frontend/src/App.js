@@ -2594,7 +2594,7 @@ function EmployeeLocationTab({ employee, vital }) {
                   <div>SpO2: <span class="${vital.spo2 < 95 ? 'text-red-600' : 'text-green-600'}">${vital.spo2}%</span></div>
                   <div>Temperature: <span class="${vital.temperature > 37.5 ? 'text-red-600' : 'text-green-600'}">${vital.temperature.toFixed(1)}°C</span></div>
                   <div class="text-xs text-gray-500 mt-2">
-                    Accuracy: ±${vital.accuracy}m<br>
+                    Accuracy: ±${vital.gps_accuracy}m<br>
                     Last update: ${new Date(vital.timestamp).toLocaleString()}
                   </div>
                 </div>
@@ -2634,7 +2634,7 @@ function EmployeeLocationTab({ employee, vital }) {
           </div>
           <div>
             <span className="text-gray-600">Accuracy:</span>
-            <div className="font-semibold">±{vital?.accuracy || 0}m</div>
+            <div className="font-semibold">±{vital?.gps_accuracy || 0}m</div>
           </div>
         </div>
       </div>
