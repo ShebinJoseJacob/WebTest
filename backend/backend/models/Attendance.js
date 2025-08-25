@@ -120,7 +120,7 @@ class Attendance {
       FROM attendance a
       JOIN users u ON a.user_id = u.id
       WHERE a.date = $1
-      ORDER BY u.name ASC
+      ORDER BY u.id ASC
     `, [date]);
 
     return result.rows.map(row => ({
@@ -154,7 +154,7 @@ class Attendance {
       params.push(userId);
     }
 
-    queryText += ' GROUP BY u.id, u.name, u.department ORDER BY u.name ASC';
+    queryText += ' GROUP BY u.id, u.name, u.department ORDER BY u.id ASC';
 
     const result = await query(queryText, params);
     return result.rows;
@@ -184,7 +184,7 @@ class Attendance {
       LEFT JOIN attendance a ON u.id = a.user_id AND a.date = $1
       LEFT JOIN devices d ON u.id = d.user_id
       WHERE u.role = 'employee'
-      ORDER BY u.name ASC
+      ORDER BY u.id ASC
     `, [today]);
 
     return result.rows;

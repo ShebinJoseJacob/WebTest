@@ -88,7 +88,7 @@ class User {
       queryParams.push(filters.active);
     }
 
-    queryText += ' ORDER BY u.name ASC';
+    queryText += ' ORDER BY u.id ASC';
 
     const result = await query(queryText, queryParams);
     
@@ -106,7 +106,7 @@ class User {
   // Get users by role
   static async findByRole(role) {
     const result = await query(
-      'SELECT id, name, email, role, department, created_at, updated_at FROM users WHERE role = $1 ORDER BY name ASC',
+      'SELECT id, name, email, role, department, created_at, updated_at FROM users WHERE role = $1 ORDER BY id ASC',
       [role]
     );
     
@@ -263,7 +263,7 @@ class User {
       params.push(role);
     }
     
-    queryText += ' ORDER BY name ASC LIMIT 50';
+    queryText += ' ORDER BY id ASC LIMIT 50';
     
     const result = await query(queryText, params);
     return result.rows.map(row => new User(row));

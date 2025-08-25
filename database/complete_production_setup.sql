@@ -8,6 +8,7 @@ CREATE EXTENSION IF NOT EXISTS "pg_trgm";
 CREATE EXTENSION IF NOT EXISTS "btree_gin";
 
 -- Drop existing tables if they exist (for fresh setup)
+DROP TABLE IF EXISTS compliance_records CASCADE;
 DROP TABLE IF EXISTS attendance CASCADE;
 DROP TABLE IF EXISTS alerts CASCADE;
 DROP TABLE IF EXISTS vitals CASCADE;
@@ -19,6 +20,9 @@ DROP TYPE IF EXISTS user_role CASCADE;
 DROP TYPE IF EXISTS attendance_status CASCADE;
 DROP TYPE IF EXISTS alert_type CASCADE;
 DROP TYPE IF EXISTS alert_severity CASCADE;
+DROP TYPE IF EXISTS compliance_type CASCADE;
+DROP TYPE IF EXISTS compliance_status CASCADE;
+DROP TYPE IF EXISTS risk_level CASCADE;
 
 -- Drop views
 DROP VIEW IF EXISTS user_device_summary CASCADE;
@@ -38,6 +42,13 @@ CREATE TYPE user_role AS ENUM ('employee', 'supervisor');
 CREATE TYPE attendance_status AS ENUM ('present', 'absent', 'partial');
 CREATE TYPE alert_type AS ENUM ('fall', 'heart_rate', 'spo2', 'temperature', 'offline');
 CREATE TYPE alert_severity AS ENUM ('low', 'medium', 'high', 'critical');
+
+-- Compliance system ENUM types
+CREATE TYPE compliance_type AS ENUM (
+    'certification', 'licensing', 'permit', 'inspection', 'audit', 'training', 'documentation'
+);
+CREATE TYPE compliance_status AS ENUM ('compliant', 'non_compliant', 'pending_review', 'in_remediation', 'resolved', 'expired', 'expiring_soon');
+CREATE TYPE risk_level AS ENUM ('low', 'medium', 'high', 'critical');
 
 -- Users table
 CREATE TABLE users (
@@ -342,10 +353,7 @@ INSERT INTO devices (user_id, device_serial, device_model, firmware_version, bat
 -- COMPLIANCE MODULE ADDITION
 -- =====================================================
 
--- Create ENUM types for compliance
-CREATE TYPE compliance_type AS ENUM ('safety', 'environmental', 'health', 'equipment', 'training', 'documentation');
-CREATE TYPE compliance_status AS ENUM ('compliant', 'non_compliant', 'pending_review', 'in_remediation', 'resolved');
-CREATE TYPE risk_level AS ENUM ('low', 'medium', 'high', 'critical');
+-- ENUM types already created above
 
 -- Create compliance_records table
 CREATE TABLE compliance_records (
@@ -449,37 +457,42 @@ LEFT JOIN users assigned_user ON c.assigned_to = assigned_user.id
 LEFT JOIN users reviewer ON c.reviewed_by = reviewer.id
 LEFT JOIN users approver ON c.approved_by = approver.id;
 
--- Insert sample compliance data
+-- Insert sample compliance data (Mining Administrative & Regulatory Focus)
 INSERT INTO compliance_records (
     user_id, device_id, type, status, title, description, 
     regulation_standard, threshold_value, measured_value, risk_level,
-    corrective_action, assigned_to
+    corrective_action, assigned_to, remediation_deadline
 ) VALUES 
--- Environmental compliance issues
-(4, 1, 'environmental', 'non_compliant', 'CO Level Exceeded', 'Carbon monoxide levels detected above OSHA permissible exposure limit during maintenance work in confined space.', 'OSHA 1910.146', 35.0, 52.0, 'high', 'Immediate area evacuation and ventilation system inspection required', 2),
+-- Mining Certification Compliance
+(4, 1, 'certification', 'expired', 'Heavy Machinery License Expired', 'Employee heavy machinery operating license expired 15 days ago. Cannot operate excavators, bulldozers, or mining trucks.', 'MSHA 30 CFR 77.1600', NULL, NULL, 'critical', 'Immediate suspension from machinery operation. Schedule recertification exam within 48 hours', 2, CURRENT_TIMESTAMP + INTERVAL '48 hours'),
 
-(5, 2, 'environmental', 'pending_review', 'H2S Detection Alert', 'Hydrogen sulfide detected near processing unit. Requires immediate assessment.', 'OSHA 1910.1000', 20.0, 18.5, 'medium', NULL, 2),
+(5, 2, 'licensing', 'expiring_soon', 'Blasting License Expires in 7 Days', 'Explosives handling license expires next week. Required for all underground blasting operations.', 'ATF 27 CFR 555', NULL, NULL, 'high', 'Schedule renewal appointment immediately', 2, CURRENT_TIMESTAMP + INTERVAL '7 days'),
 
--- Safety compliance
-(6, 3, 'safety', 'non_compliant', 'Fall Protection Violation', 'Worker detected working at height without proper fall protection equipment.', 'OSHA 1926.501', 6.0, 12.0, 'critical', 'Mandatory safety retraining and disciplinary action', 3),
+(6, 3, 'certification', 'expired', 'Mine Safety Training Certification Expired', 'Annual mine safety training certification expired. Worker cannot enter underground areas without current certification.', 'MSHA 30 CFR 48.6', NULL, NULL, 'critical', 'Immediate training session required. Restrict to surface operations only', 3, CURRENT_TIMESTAMP + INTERVAL '24 hours'),
 
-(7, 4, 'health', 'compliant', 'Heart Rate Monitoring', 'Employee heart rate within acceptable range during high-stress work period.', 'Company Policy HR-001', 180.0, 165.0, 'low', NULL, NULL),
+(7, 4, 'permit', 'non_compliant', 'Confined Space Entry Permit Missing', 'Attempting to work in confined space without proper permit and gas monitoring clearance.', 'MSHA 30 CFR 75.1714', NULL, NULL, 'critical', 'Stop work immediately. Obtain proper permit and atmospheric testing', 2, CURRENT_TIMESTAMP + INTERVAL '2 hours'),
 
--- Equipment compliance
-(8, 5, 'equipment', 'in_remediation', 'Device Battery Low', 'IoT monitoring device showing critically low battery affecting data transmission reliability.', 'Company Standard EQ-005', 20.0, 12.0, 'medium', 'Schedule immediate battery replacement', 2),
+(8, 5, 'licensing', 'expired', 'Mine Foreman License Expired', 'Mine foreman certification expired. Cannot supervise underground operations without valid license.', 'MSHA 30 CFR 75.100', NULL, NULL, 'critical', 'Suspend supervisory duties immediately. Schedule license renewal exam', 1, CURRENT_TIMESTAMP + INTERVAL '48 hours'),
 
--- Training compliance  
-(9, 6, 'training', 'non_compliant', 'Safety Training Expired', 'Employee safety certification expired. Not authorized for hazardous area work.', 'Company Policy TR-101', NULL, NULL, 'high', 'Enroll in next available safety training session', 3),
+(9, 6, 'permit', 'expiring_soon', 'Mining Permit Renewal Due', 'Annual mining operation permit expires in 30 days. Required for continued extraction operations.', 'State Mining Commission', NULL, NULL, 'high', 'Prepare permit renewal documentation and submit to regulatory authority', 1, CURRENT_TIMESTAMP + INTERVAL '21 days'),
 
--- Documentation compliance
-(10, 7, 'documentation', 'resolved', 'Incident Report Filed', 'Minor injury incident properly documented and reported within required timeframe.', 'OSHA 1904.7', 24.0, 2.0, 'low', 'Incident report submitted to safety committee', 3),
+(10, 7, 'inspection', 'pending_review', 'Weekly Mine Inspection Report', 'Weekly mine safety inspection completed. Administrative compliance review required.', 'MSHA 30 CFR 75.360', NULL, NULL, 'low', 'Review inspection documentation and file required reports', 2, CURRENT_TIMESTAMP + INTERVAL '7 days'),
 
--- More environmental samples
-(11, 8, 'environmental', 'non_compliant', 'Methane Level Warning', 'CH4 levels approaching lower explosive limit in storage area.', 'EPA 40 CFR 60', 25.0, 32.0, 'critical', 'Immediate gas leak investigation and repair', 2),
+(11, 8, 'certification', 'expiring_soon', 'First Aid Certification Expires Soon', 'Mine rescue team member first aid certification expires in 14 days.', 'MSHA 30 CFR 75.1502', NULL, NULL, 'medium', 'Schedule first aid recertification course', 3, CURRENT_TIMESTAMP + INTERVAL '14 days'),
 
-(12, 9, 'safety', 'pending_review', 'Extended Work Hours', 'Employee worked beyond maximum allowed consecutive hours without mandatory rest period.', 'DOT 49 CFR 395', 14.0, 16.5, 'medium', NULL, 3),
+(12, 9, 'audit', 'in_remediation', 'Quarterly Safety Audit Findings', 'Quarterly safety audit identified inadequate documentation in training records.', 'MSHA 30 CFR 75.380', NULL, NULL, 'high', 'Update training documentation and filing system within 72 hours', 2, CURRENT_TIMESTAMP + INTERVAL '72 hours'),
 
-(13, 10, 'health', 'compliant', 'Temperature Monitoring', 'Body temperature readings normal throughout shift in high-temperature environment.', 'NIOSH Criteria Document', 38.5, 37.2, 'low', NULL, NULL);
+(13, 10, 'documentation', 'non_compliant', 'Incident Reporting Documentation Missing', 'Required incident documentation not properly filed within regulatory timeframe.', 'MSHA 30 CFR 50.20', NULL, NULL, 'high', 'Complete and file all missing incident reports immediately', 3, CURRENT_TIMESTAMP + INTERVAL '24 hours'),
+
+(14, 11, 'training', 'expired', 'Annual Hazmat Training Certification Expired', 'Annual hazardous materials handling training certification expired. Required for chemical handling operations.', 'MSHA 30 CFR 77.1109', NULL, NULL, 'high', 'Schedule hazmat recertification training immediately', 2, CURRENT_TIMESTAMP + INTERVAL '48 hours'),
+
+(15, 12, 'licensing', 'expiring_soon', 'Crane Operator License Expires in 21 Days', 'Mobile crane operator license expires in 3 weeks. Required for equipment lifting operations.', 'OSHA 29 CFR 1926.1427', NULL, NULL, 'medium', 'Schedule crane operator license renewal examination', 3, CURRENT_TIMESTAMP + INTERVAL '14 days'),
+
+(4, 1, 'permit', 'expired', 'Work Zone Traffic Control Permit Expired', 'Traffic control permit for mine access road work expired. Cannot conduct roadway maintenance without permit.', 'DOT Traffic Control Standards', NULL, NULL, 'medium', 'Apply for permit renewal and halt roadway operations until approved', 2, CURRENT_TIMESTAMP + INTERVAL '72 hours'),
+
+(5, 2, 'certification', 'expiring_soon', 'Mine Rescue Team Certification Due', 'Mine rescue team certification expires in 45 days. Team must maintain current certification.', 'MSHA 30 CFR 75.1502', NULL, NULL, 'medium', 'Schedule mine rescue team recertification training', 1, CURRENT_TIMESTAMP + INTERVAL '30 days'),
+
+(6, 3, 'documentation', 'pending_review', 'Environmental Impact Assessment Update', 'Annual environmental impact assessment documentation requires regulatory review and approval.', 'EPA NEPA Requirements', NULL, NULL, 'low', 'Prepare updated environmental documentation for submission', 1, CURRENT_TIMESTAMP + INTERVAL '14 days');
 
 -- Update some compliance records to show workflow progression
 UPDATE compliance_records SET 
