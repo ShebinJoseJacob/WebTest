@@ -638,22 +638,37 @@ function VitalChart({ title, data, dataKey, unit, color, icon: Icon, normalRange
   
   const normalThresholds = parseNormalRange(normalRange);
   
-  // Calculate dynamic Y-axis range that includes both data and normal range
+  // Calculate Y-axis range focused on safe range with smart scaling
   const calculateYAxisRange = (data) => {
     const validData = data.filter(point => point[dataKey] != null && !isNaN(point[dataKey]));
     
-    if (validData.length === 0) {
-      return { min: normalThresholds.min, max: normalThresholds.max };
+    // Start with safe range as base
+    let rangeMin = normalThresholds.min;
+    let rangeMax = normalThresholds.max;
+    
+    if (validData.length > 0) {
+      const dataMin = Math.min(...validData.map(d => d[dataKey]));
+      const dataMax = Math.max(...validData.map(d => d[dataKey]));
+      
+      // If data extends beyond safe range, expand intelligently
+      if (dataMin < normalThresholds.min) {
+        rangeMin = dataMin * 0.95; // Small padding below
+      }
+      if (dataMax > normalThresholds.max) {
+        // For values above safe range, add more space to show danger clearly
+        rangeMax = dataMax * 1.15;
+      }
     }
     
-    const dataMin = Math.min(...validData.map(d => d[dataKey]));
-    const dataMax = Math.max(...validData.map(d => d[dataKey]));
+    // Ensure minimum range for visibility
+    const minRange = (normalThresholds.max - normalThresholds.min) * 0.5;
+    if ((rangeMax - rangeMin) < minRange) {
+      const center = (rangeMax + rangeMin) / 2;
+      rangeMin = center - minRange / 2;
+      rangeMax = center + minRange / 2;
+    }
     
-    // Expand range to include normal thresholds and add padding
-    const rangeMin = Math.min(dataMin, normalThresholds.min) * 0.9;
-    const rangeMax = Math.max(dataMax, normalThresholds.max) * 1.1;
-    
-    return { min: rangeMin, max: rangeMax };
+    return { min: Math.max(0, rangeMin), max: rangeMax };
   };
   
   const yAxisRange = calculateYAxisRange(chartData);
@@ -739,31 +754,33 @@ function VitalChart({ title, data, dataKey, unit, color, icon: Icon, normalRange
             </div>
           </div>
         ) : (
-          <svg className="w-full h-full pointer-events-none">
-            {/* Normal range threshold lines */}
-            {normalThresholds.max > yAxisRange.min && normalThresholds.max < yAxisRange.max && (
+          <svg className="w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
+            {/* Safe threshold line (red dashed) */}
+            {normalThresholds.max >= yAxisRange.min && normalThresholds.max <= yAxisRange.max && (
               <line
                 x1="0"
                 y1={100 - ((normalThresholds.max - yAxisRange.min) / yAxisSpan * 100)}
                 x2="100"
                 y2={100 - ((normalThresholds.max - yAxisRange.min) / yAxisSpan * 100)}
                 stroke="#ef4444"
-                strokeWidth="1"
-                strokeDasharray="3,3"
-                opacity="0.6"
+                strokeWidth="0.5"
+                strokeDasharray="2,2"
+                opacity="0.8"
                 vectorEffect="non-scaling-stroke"
               />
             )}
-            {normalThresholds.min > yAxisRange.min && normalThresholds.min < yAxisRange.max && normalThresholds.min !== normalThresholds.max && (
+            
+            {/* Lower safe threshold line (green dashed) if different from max */}
+            {normalThresholds.min >= yAxisRange.min && normalThresholds.min <= yAxisRange.max && normalThresholds.min !== normalThresholds.max && normalThresholds.min > 0 && (
               <line
                 x1="0"
                 y1={100 - ((normalThresholds.min - yAxisRange.min) / yAxisSpan * 100)}
                 x2="100"
                 y2={100 - ((normalThresholds.min - yAxisRange.min) / yAxisSpan * 100)}
                 stroke="#10b981"
-                strokeWidth="1"
-                strokeDasharray="3,3"
-                opacity="0.6"
+                strokeWidth="0.5"
+                strokeDasharray="2,2"
+                opacity="0.8"
                 vectorEffect="non-scaling-stroke"
               />
             )}
