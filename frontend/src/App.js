@@ -532,6 +532,46 @@ function EmployeeDashboard() {
           />
         </div>
 
+        {/* Environmental Monitoring */}
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <h2 className="text-lg font-semibold mb-4 flex items-center">
+            <AlertTriangle className="h-5 w-5 mr-2 text-orange-600" />
+            Environmental Monitoring
+          </h2>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <VitalChart
+              title="Carbon Monoxide (CO)"
+              data={vitals}
+              dataKey="co"
+              unit="ppm"
+              color="#dc2626"
+              icon={AlertTriangle}
+              normalRange="0-35"
+              currentValue={vitals[0]?.co}
+            />
+            <VitalChart
+              title="Hydrogen Sulfide (H₂S)"
+              data={vitals}
+              dataKey="h2s"
+              unit="ppm"
+              color="#059669"
+              icon={AlertTriangle}
+              normalRange="0-10"
+              currentValue={vitals[0]?.h2s}
+            />
+            <VitalChart
+              title="Methane (CH₄)"
+              data={vitals}
+              dataKey="ch4"
+              unit="%LEL"
+              color="#ea580c"
+              icon={AlertTriangle}
+              normalRange="0-10"
+              currentValue={vitals[0]?.ch4}
+            />
+          </div>
+        </div>
+
         {/* Personal Alerts */}
         <div className="bg-white rounded-xl shadow-sm p-6">
           <h2 className="text-lg font-semibold mb-4 flex items-center">
